@@ -1,0 +1,73 @@
+{
+  "name": "topdown",
+  "displayName": "Top-Down",
+  "description": "Developer-facing language augmentation with a Fusion-style intent timeline + config table.",
+  "version": "0.0.1",
+  "publisher": "h-xx-d",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:topdown.configPanel",
+    "onCommand:topdown.openConfigPanel",
+    "onCommand:topdown.timeline.prev",
+    "onCommand:topdown.timeline.next",
+    "onCommand:topdown.timeline.pick",
+    "onCommand:topdown.timeline.clear"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "topdown.openConfigPanel",
+        "title": "Top-Down: Open Config Table"
+      },
+      {
+        "command": "topdown.timeline.prev",
+        "title": "Top-Down: Previous Step"
+      },
+      {
+        "command": "topdown.timeline.next",
+        "title": "Top-Down: Next Step"
+      },
+      {
+        "command": "topdown.timeline.pick",
+        "title": "Top-Down: Jump To Step"
+      },
+      {
+        "command": "topdown.timeline.clear",
+        "title": "Top-Down: Clear Playhead"
+      }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "topdownPanel",
+          "title": "Top-Down"
+        }
+      ]
+    },
+    "views": {
+      "topdownPanel": [
+        {
+          "id": "topdown.configPanel",
+          "name": "Config"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
