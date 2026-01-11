@@ -66,6 +66,42 @@ async function writeStore(store: ConfigStoreV1): Promise<void> {
   await vscode.workspace.fs.writeFile(uri, Buffer.from(text, 'utf8'));
 }
 
+function isLikelyRowId(s: string): boolean {
+  const t = (s || '').trim();
+  if (!t) return false;
+  // Keep this permissive; IDs are user-defined (e.g. func12).
+  return /^[A-Za-z_][A-Za-z0-9_-]{1,64}$/.test(t);
+}
+
+async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
+  const s = store ?? (await readStore());
+  const rows = (s.rows ?? []).slice();
+  if (rows.length === 0) {
+    vscode.window.showInformationMessage('No rows yet. Add one in the Top-Down Config panel.');
+    return undefined;
+  }
+
+  const picked = await vscode.window.showQuickPick(
+    rows
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((r) => ({
+        label: r.id,
+        description: r.locked ? 'locked' : undefined,
+        detail: [r.name, r.args].filter(Boolean).join(' '),
+        row: r,
+      })),
+    { title: 'Top-Down: Insert Row ID' }
+  );
+  return picked?.row;
+}
+
+function getLinePrefix(document: vscode.TextDocument, position: vscode.Position, maxChars = 64): string {
+  const line = document.lineAt(position.line).text;
+  const upto = line.slice(0, position.character);
+  return upto.length > maxChars ? upto.slice(upto.length - maxChars) : upto;
+}
+
 class ConfigPanelProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'topdown.configPanel';
 
@@ -315,6 +351,81 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   const timeline = new TimelineStatusBar(context);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('topdown.insertRowId', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage('No active editor.');
+        return;
+      }
+
+      const store = await readStore();
+      const row = await pickRow(store);
+      if (!row) return;
+
+      await editor.edit((b) => {
+        const sel = editor.selection;
+        if (!sel.isEmpty) b.replace(sel, row.id);
+        else b.insert(sel.active, row.id);
+      });
+    })
+  );
+
+  // Autocomplete row IDs when user types `td:` (language-agnostic, low-noise).
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      { scheme: 'file' },
+      {
+        provideCompletionItems: async (document, position) => {
+          const prefix = getLinePrefix(document, position).toLowerCase();
+          if (!prefix.endsWith('td:')) return undefined;
+
+          const store = await readStore();
+          const rows = store.rows ?? [];
+          return rows
+            .filter((r) => isLikelyRowId(r.id))
+            .slice()
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((r) => {
+              const it = new vscode.CompletionItem(r.id, vscode.CompletionItemKind.Reference);
+              it.insertText = r.id;
+              it.detail = r.name ? r.name : 'Top-Down row';
+              it.documentation = new vscode.MarkdownString(
+                [`**${r.id}**`, r.name ? `name: ${r.name}` : '', r.args ? `args: ${r.args}` : '', r.expr ? `expr: ${r.expr}` : '']
+                  .filter(Boolean)
+                  .join('\n\n')
+              );
+              return it;
+            });
+        },
+      },
+      ':'
+    )
+  );
+
+  // Hover row details when hovering an ID token.
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider({ scheme: 'file' }, {
+      provideHover: async (document, position) => {
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_-]{1,64}/);
+        if (!range) return undefined;
+        const word = document.getText(range);
+        if (!isLikelyRowId(word)) return undefined;
+        const store = await readStore();
+        const row = (store.rows ?? []).find((r) => r.id === word);
+        if (!row) return undefined;
+
+        const md = new vscode.MarkdownString();
+        md.appendMarkdown(`**Top-Down ${escapeHtml(row.id)}**\n\n`);
+        if (row.locked) md.appendMarkdown(`locked: true\n\n`);
+        if (row.name) md.appendMarkdown(`name: ${escapeHtml(row.name)}\n\n`);
+        if (row.args) md.appendMarkdown(`args: ${escapeHtml(row.args)}\n\n`);
+        if (row.expr) md.appendMarkdown(`expr: ${escapeHtml(row.expr)}\n\n`);
+        return new vscode.Hover(md, range);
+      },
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('topdown.openConfigPanel', async () => {

@@ -14,6 +14,7 @@
     "onStartupFinished",
     "onView:topdown.configPanel",
     "onCommand:topdown.openConfigPanel",
+    "onCommand:topdown.insertRowId",
     "onCommand:topdown.timeline.prev",
     "onCommand:topdown.timeline.next",
     "onCommand:topdown.timeline.pick",
@@ -25,6 +26,10 @@
       {
         "command": "topdown.openConfigPanel",
         "title": "Top-Down: Open Config Table"
+      },
+      {
+        "command": "topdown.insertRowId",
+        "title": "Top-Down: Insert Row ID"
       },
       {
         "command": "topdown.timeline.prev",
