@@ -70,7 +70,29 @@ function isLikelyRowId(s: string): boolean {
   const t = (s || '').trim();
   if (!t) return false;
   // Keep this permissive; IDs are user-defined (e.g. func12).
-  return /^[A-Za-z_][A-Za-z0-9_-]{1,64}$/.test(t);
+  // Allow dots for sub-IDs (e.g. func3.7) and hyphens (e.g. func-3).
+  return /^[A-Za-z_][A-Za-z0-9_.-]{1,64}$/.test(t);
+}
+
+function escapeRegExp(s: string): string {
+  return (s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function nextVariantId(fromId: string, existingIds: Set<string>): string {
+  const trimmed = (fromId || '').trim();
+  const m = /^(.*?)-(\d+)$/.exec(trimmed);
+  const base = m ? m[1] : trimmed;
+  const pattern = new RegExp(`^${escapeRegExp(base)}-(\\d+)$`);
+  let maxN = -1;
+  for (const id of existingIds) {
+    const mm = pattern.exec(id);
+    if (!mm) continue;
+    const n = Number(mm[1]);
+    if (Number.isFinite(n)) maxN = Math.max(maxN, Math.trunc(n));
+  }
+
+  const next = maxN >= 0 ? maxN + 1 : existingIds.has(base) ? 2 : 1;
+  return `${base}-${next}`;
 }
 
 async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
@@ -96,6 +118,21 @@ async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
   return picked?.row;
 }
 
+async function insertTextIntoActiveEditor(text: string): Promise<boolean> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('No active editor.');
+    return false;
+  }
+
+  await editor.edit((b) => {
+    const sel = editor.selection;
+    if (!sel.isEmpty) b.replace(sel, text);
+    else b.insert(sel.active, text);
+  });
+  return true;
+}
+
 function getLinePrefix(document: vscode.TextDocument, position: vscode.Position, maxChars = 64): string {
   const line = document.lineAt(position.line).text;
   const upto = line.slice(0, position.character);
@@ -119,6 +156,110 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (msg: unknown) => {
       if (!msg || typeof msg !== 'object') return;
       const m = msg as { type?: unknown };
+
+      if (m.type === 'setPlayhead') {
+        const payload = msg as { idx?: unknown };
+        const idx = typeof payload.idx === 'number' ? payload.idx : Number(payload.idx);
+        if (!Number.isFinite(idx)) return;
+        const store = await readStore();
+        const total = store.history?.length ?? 0;
+        store.playheadIndex = Math.max(-1, Math.min(total - 1, Math.trunc(idx)));
+        await writeStore(store);
+        await this.render();
+        return;
+      }
+
+      if (m.type === 'clearPlayhead') {
+        const store = await readStore();
+        store.playheadIndex = (store.history?.length ?? 0) - 1;
+        await writeStore(store);
+        await this.render();
+        return;
+      }
+
+      if (m.type === 'stepActions') {
+        const payload = msg as { idx?: unknown };
+        const idxRaw = typeof payload.idx === 'number' ? payload.idx : Number(payload.idx);
+        if (!Number.isFinite(idxRaw)) return;
+        const idx = Math.trunc(idxRaw);
+
+        const store = await readStore();
+        const history = store.history ?? [];
+        const step = idx >= 0 && idx < history.length ? history[idx] : undefined;
+
+        const items: Array<vscode.QuickPickItem & { action: 'set' | 'clear' | 'copyLabel' | 'copyKind' }> = [
+          { label: 'Set playhead here', action: 'set' },
+          { label: 'Clear playhead (latest)', action: 'clear' },
+          { label: 'Copy step label', action: 'copyLabel' },
+          { label: 'Copy step kind', action: 'copyKind' },
+        ];
+        const picked = await vscode.window.showQuickPick(items, { title: step ? `Top-Down: Step #${idx + 1}` : 'Top-Down: Step actions' });
+        if (!picked) return;
+
+        if (picked.action === 'set') {
+          store.playheadIndex = Math.max(-1, Math.min(history.length - 1, idx));
+          await writeStore(store);
+          await this.render();
+          return;
+        }
+        if (picked.action === 'clear') {
+          store.playheadIndex = history.length - 1;
+          await writeStore(store);
+          await this.render();
+          return;
+        }
+        if (picked.action === 'copyLabel') {
+          if (!step) return;
+          await vscode.env.clipboard.writeText(step.label);
+          return;
+        }
+        if (picked.action === 'copyKind') {
+          if (!step) return;
+          await vscode.env.clipboard.writeText(step.kind);
+          return;
+        }
+      }
+
+      if (m.type === 'rowActions') {
+        const payload = msg as { id?: unknown };
+        const id = typeof payload.id === 'string' ? payload.id.trim() : '';
+        if (!id) return;
+
+        const store = await readStore();
+        const rows = store.rows ?? [];
+        const row = rows.find((r) => r.id === id);
+        if (!row) return;
+
+        const items: Array<vscode.QuickPickItem & { action: 'variant' | 'insertId' | 'copyId' }> = [
+          { label: 'Duplicate as variant', description: 'Creates a new -N ID (e.g. cla7-2)', action: 'variant' },
+          { label: 'Insert ID into editor', action: 'insertId' },
+          { label: 'Copy ID', action: 'copyId' },
+        ];
+        const picked = await vscode.window.showQuickPick(items, { title: `Top-Down: ${id}` });
+        if (!picked) return;
+
+        if (picked.action === 'variant') {
+          const existingIds = new Set(rows.map((r) => (r.id || '').trim()).filter(Boolean));
+          const newId = nextVariantId(id, existingIds);
+          const variant: ConfigRow = { ...row, id: newId, locked: false };
+          store.rows = rows.concat([variant]);
+          store.history = store.history ?? [];
+          store.history.push({ ts: Date.now(), kind: 'row.variant', label: `+ ${newId} (from ${id})` });
+          await writeStore(store);
+          await this.render();
+          return;
+        }
+
+        if (picked.action === 'insertId') {
+          await insertTextIntoActiveEditor(id);
+          return;
+        }
+
+        if (picked.action === 'copyId') {
+          await vscode.env.clipboard.writeText(id);
+          return;
+        }
+      }
 
       if (m.type === 'saveRows') {
         const payload = msg as { rows?: unknown };
@@ -169,6 +310,14 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
     const nonce = String(Math.random()).slice(2);
 
+    const history = store.history ?? [];
+    const playhead = typeof store.playheadIndex === 'number' ? store.playheadIndex : history.length - 1;
+
+    const stepsNewestFirst = history
+      .map((h, idx) => ({ idx, ts: h.ts, kind: h.kind, label: h.label }))
+      .slice()
+      .sort((a, b) => b.idx - a.idx);
+
     const rows = (store.rows ?? []).map((r) => ({
       id: escapeHtml(r.id),
       locked: !!r.locked,
@@ -191,6 +340,27 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: 0; padding: 6px 10px; cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
 
+    .layout { display: flex; gap: 12px; }
+    .timeline { position: relative; width: 240px; min-width: 200px; max-width: 280px; border-right: 1px solid var(--vscode-panel-border); padding-right: 12px; }
+    .timelineHeader { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .timelineHeader .title { font-weight: 600; }
+    .timelineList { max-height: calc(100vh - 140px); overflow: auto; padding-right: 6px; }
+    .stepRow { display: flex; gap: 6px; align-items: stretch; margin: 0 0 6px 0; }
+    .stepMain { flex: 1; display: block; width: 100%; text-align: left; padding: 6px 8px; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); cursor: pointer; }
+    .stepMain:hover { background: var(--vscode-list-hoverBackground); }
+    .stepMain.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); border-color: var(--vscode-focusBorder); }
+    .stepMain .meta { opacity: 0.75; font-size: 0.9em; margin-top: 2px; }
+    .stepMore { width: 32px; padding: 0; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); cursor: pointer; }
+    .stepMore:hover { background: var(--vscode-list-hoverBackground); }
+
+    .drawer { position: absolute; top: 0; left: 0; right: 12px; bottom: 0; border: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); color: var(--vscode-foreground); padding: 10px; box-sizing: border-box; display: none; }
+    .drawer.open { display: block; }
+    .drawerHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .drawerHeader .title { font-weight: 600; }
+    .drawer pre { white-space: pre-wrap; word-break: break-word; background: var(--vscode-textCodeBlock-background); padding: 8px; border: 1px solid var(--vscode-panel-border); }
+
+    .main { flex: 1; min-width: 600px; }
+
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border); vertical-align: top; }
     th { text-align: left; }
@@ -200,6 +370,9 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     .lockCol { width: 64px; }
     .idCol { width: 140px; }
     .exprCol { width: 40%; }
+    .actionsCol { width: 44px; }
+  .rowMore { width: 32px; padding: 0; border: 1px solid var(--vscode-panel-border); background: transparent; color: var(--vscode-foreground); cursor: pointer; }
+  .rowMore:hover { background: var(--vscode-list-hoverBackground); }
 
     details > summary { cursor: pointer; user-select: none; }
     details > summary { list-style: none; }
@@ -209,46 +382,158 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
   </style>
 </head>
 <body>
-  <div class="bar">
-    <button id="add">+ Row</button>
-    <button id="save">Save</button>
+  <div class="layout">
+    <aside class="timeline" aria-label="Timeline">
+      <div class="timelineHeader">
+        <div class="title">Timeline</div>
+        <button id="clearPlayhead" title="Clear playhead (jump to latest)">Clear</button>
+      </div>
+      <div class="timelineList" role="list">
+        ${stepsNewestFirst
+          .map((s) => {
+            const isActive = s.idx === playhead;
+            const label = escapeHtml(s.label);
+            const kind = escapeHtml(s.kind);
+            const ts = typeof s.ts === 'number' ? String(s.ts) : '';
+            return `
+          <div class="stepRow" role="listitem" data-step-idx="${s.idx}" data-step-label="${label}" data-step-kind="${kind}" data-step-ts="${ts}">
+            <button class="stepMain ${isActive ? 'active' : ''}" data-step-main="${s.idx}" title="${kind}">
+              <div>${label}</div>
+              <div class="meta">#${s.idx + 1} • ${kind}</div>
+            </button>
+            <button class="stepMore" data-step-more="${s.idx}" title="Actions">⋯</button>
+          </div>`;
+          })
+          .join('')}
+        ${stepsNewestFirst.length === 0 ? `<div class="hint">No steps yet.</div>` : ''}
+      </div>
+
+      <div id="drawer" class="drawer" aria-hidden="true">
+        <div class="drawerHeader">
+          <div class="title">Step</div>
+          <button id="drawerClose" title="Close">Close</button>
+        </div>
+        <div id="drawerBody"></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="bar">
+        <button id="add">+ Row</button>
+        <button id="save">Save</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th class="lockCol">Lock</th>
+            <th class="idCol">ID</th>
+            <th>Name</th>
+            <th>Args</th>
+            <th class="exprCol">Expression</th>
+            <th class="actionsCol"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (r) => `
+            <tr data-row="${r.id}">
+              <td style="text-align:center"><input type="checkbox" data-lock="${r.id}" ${r.locked ? 'checked' : ''} /></td>
+              <td><input data-id value="${r.id}" /></td>
+              <td><input data-name value="${r.name}" ${r.locked ? 'disabled' : ''} /></td>
+              <td><input data-args value="${r.args}" ${r.locked ? 'disabled' : ''} /></td>
+              <td>
+                <details>
+                  <summary>expr</summary>
+                  <div style="margin-top:6px"><input data-expr value="${r.expr}" ${r.locked ? 'disabled' : ''} /></div>
+                </details>
+              </td>
+              <td style="text-align:center"><button class="rowMore" data-row-more="${r.id}" title="Row actions">⋯</button></td>
+            </tr>`
+            )
+            .join('')}
+        </tbody>
+      </table>
+
+      <div class="hint">This panel is the source of truth. Locked rows are not editable from the table.</div>
+    </main>
   </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th class="lockCol">Lock</th>
-        <th class="idCol">ID</th>
-        <th>Name</th>
-        <th>Args</th>
-        <th class="exprCol">Expression</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows
-        .map(
-          (r) => `
-        <tr data-row="${r.id}">
-          <td style="text-align:center"><input type="checkbox" data-lock="${r.id}" ${r.locked ? 'checked' : ''} /></td>
-          <td><input data-id value="${r.id}" /></td>
-          <td><input data-name value="${r.name}" ${r.locked ? 'disabled' : ''} /></td>
-          <td><input data-args value="${r.args}" ${r.locked ? 'disabled' : ''} /></td>
-          <td>
-            <details>
-              <summary>expr</summary>
-              <div style="margin-top:6px"><input data-expr value="${r.expr}" ${r.locked ? 'disabled' : ''} /></div>
-            </details>
-          </td>
-        </tr>`
-        )
-        .join('')}
-    </tbody>
-  </table>
-
-  <div class="hint">This panel is the source of truth. Locked rows are not editable from the table.</div>
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+
+    const drawer = document.getElementById('drawer');
+    const drawerBody = document.getElementById('drawerBody');
+
+    function openDrawer(step) {
+      const d = new Date(Number(step.ts || 0));
+      const when = Number.isFinite(d.getTime()) && Number(step.ts) > 0 ? d.toLocaleString() : '';
+      const lines = [];
+      lines.push('label: ' + step.label);
+      lines.push('kind: ' + step.kind);
+      if (when) lines.push('time: ' + when);
+      lines.push('index: ' + step.idx);
+      drawerBody.innerHTML = '';
+      const pre = document.createElement('pre');
+      pre.textContent = lines.join('\n');
+      drawerBody.appendChild(pre);
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDrawer() {
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+    }
+
+    document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+
+    document.getElementById('clearPlayhead').addEventListener('click', () => {
+      vscode.postMessage({ type: 'clearPlayhead' });
+    });
+
+    for (const row of Array.from(document.querySelectorAll('[data-step-idx]'))) {
+      const idx = Number(row.getAttribute('data-step-idx'));
+      const step = {
+        idx,
+        label: row.getAttribute('data-step-label') || '',
+        kind: row.getAttribute('data-step-kind') || '',
+        ts: row.getAttribute('data-step-ts') || '0',
+      };
+
+      const main = row.querySelector('[data-step-main]');
+      const more = row.querySelector('[data-step-more]');
+
+      if (main) {
+        main.addEventListener('click', () => {
+          if (!Number.isFinite(idx)) return;
+          vscode.postMessage({ type: 'setPlayhead', idx });
+        });
+        main.addEventListener('dblclick', () => {
+          if (!Number.isFinite(idx)) return;
+          openDrawer(step);
+        });
+        main.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          if (!Number.isFinite(idx)) return;
+          vscode.postMessage({ type: 'stepActions', idx });
+        });
+      }
+
+      if (more) {
+        more.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          if (!Number.isFinite(idx)) return;
+          vscode.postMessage({ type: 'stepActions', idx });
+        });
+        more.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          if (!Number.isFinite(idx)) return;
+          vscode.postMessage({ type: 'stepActions', idx });
+        });
+      }
+    }
 
     document.getElementById('add').addEventListener('click', () => {
       vscode.postMessage({ type: 'addRow' });
@@ -272,6 +557,24 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       });
       vscode.postMessage({ type: 'saveRows', rows });
     });
+
+    for (const btn of Array.from(document.querySelectorAll('[data-row-more]'))) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = e.currentTarget.getAttribute('data-row-more');
+        if (!id) return;
+        vscode.postMessage({ type: 'rowActions', id });
+      });
+    }
+
+    for (const tr of Array.from(document.querySelectorAll('tbody tr[data-row]'))) {
+      tr.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const id = tr.getAttribute('data-row');
+        if (!id) return;
+        vscode.postMessage({ type: 'rowActions', id });
+      });
+    }
   </script>
 </body>
 </html>`;
@@ -287,70 +590,11 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#039;');
 }
 
-class TimelineStatusBar {
-  private readonly left: vscode.StatusBarItem;
-  private readonly main: vscode.StatusBarItem;
-  private readonly right: vscode.StatusBarItem;
-  private readonly clear: vscode.StatusBarItem;
-
-  private steps: Array<{ label: string; kind: string }> = [];
-  private playhead: number = -1;
-
-  constructor(private readonly context: vscode.ExtensionContext) {
-    this.left = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 101);
-    this.main = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    this.right = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
-    this.clear = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98);
-
-    this.left.command = 'topdown.timeline.prev';
-    this.right.command = 'topdown.timeline.next';
-    this.main.command = 'topdown.timeline.pick';
-    this.clear.command = 'topdown.timeline.clear';
-
-    this.left.text = '$(chevron-left)';
-    this.right.text = '$(chevron-right)';
-    this.clear.text = '$(close)';
-
-    this.left.tooltip = 'Top-Down: Previous step';
-    this.right.tooltip = 'Top-Down: Next step';
-    this.main.tooltip = 'Top-Down: Jump to step';
-    this.clear.tooltip = 'Top-Down: Clear playhead';
-
-    this.left.show();
-    this.main.show();
-    this.right.show();
-    this.clear.show();
-  }
-
-  async refreshFromStore(): Promise<void> {
-    const store = await readStore();
-    const history = store.history ?? [];
-    this.steps = history.map((h) => ({ label: h.label, kind: h.kind }));
-    this.playhead = typeof store.playheadIndex === 'number' ? store.playheadIndex : this.steps.length - 1;
-    this.render();
-  }
-
-  private render(): void {
-    const total = this.steps.length;
-    const ph = Math.max(-1, Math.min(this.playhead, total - 1));
-    const filled = ph >= 0 ? ph + 1 : 0;
-
-    const barLen = 10;
-    const filledBars = total === 0 ? 0 : Math.min(barLen, Math.round((filled / Math.max(1, total)) * barLen));
-    const emptyBars = Math.max(0, barLen - filledBars);
-
-    const bar = '▮'.repeat(filledBars) + '▯'.repeat(emptyBars);
-    this.main.text = `Top-Down ${bar} ${filled}/${total}`;
-  }
-}
-
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const provider = new ConfigPanelProvider(context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(ConfigPanelProvider.viewType, provider, { webviewOptions: { retainContextWhenHidden: true } })
   );
-
-  const timeline = new TimelineStatusBar(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('topdown.insertRowId', async () => {
@@ -369,6 +613,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         if (!sel.isEmpty) b.replace(sel, row.id);
         else b.insert(sel.active, row.id);
       });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('topdown.duplicateRowVariant', async () => {
+      const store = await readStore();
+      const source = await pickRow(store);
+      if (!source) return;
+
+      const rows = store.rows ?? [];
+      const existingIds = new Set(rows.map((r) => (r.id || '').trim()).filter(Boolean));
+      const newId = nextVariantId(source.id, existingIds);
+
+      const variant: ConfigRow = {
+        ...source,
+        id: newId,
+        locked: false,
+      };
+
+      store.rows = rows.concat([variant]);
+      store.history = store.history ?? [];
+      store.history.push({ ts: Date.now(), kind: 'row.variant', label: `+ ${newId} (from ${source.id})` });
+      await writeStore(store);
+      await provider.render();
     })
   );
 
@@ -408,7 +676,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.languages.registerHoverProvider({ scheme: 'file' }, {
       provideHover: async (document, position) => {
-        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_-]{1,64}/);
+        const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_.-]{1,64}/);
         if (!range) return undefined;
         const word = document.getText(range);
         if (!isLikelyRowId(word)) return undefined;
@@ -439,7 +707,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const store = await readStore();
       store.playheadIndex = (store.history?.length ?? 0) - 1;
       await writeStore(store);
-      await timeline.refreshFromStore();
+      await provider.render();
     }),
     vscode.commands.registerCommand('topdown.timeline.prev', async () => {
       const store = await readStore();
@@ -447,7 +715,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const cur = typeof store.playheadIndex === 'number' ? store.playheadIndex : total - 1;
       store.playheadIndex = Math.max(-1, cur - 1);
       await writeStore(store);
-      await timeline.refreshFromStore();
+      await provider.render();
     }),
     vscode.commands.registerCommand('topdown.timeline.next', async () => {
       const store = await readStore();
@@ -455,7 +723,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const cur = typeof store.playheadIndex === 'number' ? store.playheadIndex : total - 1;
       store.playheadIndex = Math.min(total - 1, cur + 1);
       await writeStore(store);
-      await timeline.refreshFromStore();
+      await provider.render();
     }),
     vscode.commands.registerCommand('topdown.timeline.pick', async () => {
       const store = await readStore();
@@ -471,12 +739,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!picked) return;
       store.playheadIndex = picked.idx;
       await writeStore(store);
-      await timeline.refreshFromStore();
+      await provider.render();
     })
   );
-
-  // Initial render.
-  await timeline.refreshFromStore();
 }
 
 export function deactivate(): void {

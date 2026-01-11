@@ -43,3 +43,29 @@ This produces a `.vsix` you can send to teammates.
 Install on another machine:
 
 - VS Code Command Palette → `Extensions: Install from VSIX...`
+
+## Python Runtime (Shorthand)
+
+If you want to use Top-Down IDs as Python-friendly shorthand that resolves at runtime, use the tiny stdlib-only runtime helper:
+
+- [python/topdown_runtime.py](python/topdown_runtime.py)
+
+Example:
+
+```py
+from topdown_runtime import td
+
+row = td("cla7-2")
+print(row.name)
+print(row.args_list())
+```
+
+It auto-finds `.topdown/config.json` by walking upward from your script or cwd.
+
+### Export (Optional)
+
+For production or faster startup, generate a static Python module:
+
+```bash
+python python/topdown_export.py --out .topdown/generated/topdown_defs.py
+```

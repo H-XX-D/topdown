@@ -19,6 +19,7 @@
     "onView:topdown.configPanel",
     "onCommand:topdown.openConfigPanel",
     "onCommand:topdown.insertRowId",
+    "onCommand:topdown.duplicateRowVariant",
     "onCommand:topdown.timeline.prev",
     "onCommand:topdown.timeline.next",
     "onCommand:topdown.timeline.pick",
@@ -34,6 +35,10 @@
       {
         "command": "topdown.insertRowId",
         "title": "Top-Down: Insert Row ID"
+      },
+      {
+        "command": "topdown.duplicateRowVariant",
+        "title": "Top-Down: Duplicate Row As Variant"
       },
       {
         "command": "topdown.timeline.prev",
