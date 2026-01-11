@@ -4,6 +4,10 @@
   "description": "Developer-facing language augmentation with a Fusion-style intent timeline + config table.",
   "version": "0.0.1",
   "publisher": "h-xx-d",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/H-XX-D/topdown.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -68,11 +72,14 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies",
+    "package:ci": "npm run compile && vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
     "typescript": "^5.4.0"
   }
 }

@@ -17,3 +17,29 @@ The config table is a **Panel tab** (bottom panel) so the table can be wide with
 - `npm install`
 - `npm run compile`
 - Run via VS Code Extension Development Host.
+
+## Sharing With Teammates
+
+There are two things to share:
+
+1) **The extension** (Top-Down) — each teammate needs it installed.
+2) **The source of truth** (the table) — this should live in your repo so everyone sees the same intent.
+
+Top-Down persists the table to:
+
+- `.topdown/config.json`
+
+If you want teammates to share the same IDs/rows/locks, commit `.topdown/config.json` to git.
+
+## Packaging / Installing
+
+To create an installable artifact:
+
+- `npm install`
+- `npm run package`
+
+This produces a `.vsix` you can send to teammates.
+
+Install on another machine:
+
+- VS Code Command Palette → `Extensions: Install from VSIX...`
