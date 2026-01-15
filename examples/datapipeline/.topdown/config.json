@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "id": "db-connection",
+      "locked": false,
+      "name": "Database connection string",
+      "args": "--host localhost --port 5432",
+      "expr": "postgresql://localhost:5432/mydb",
+      "depends": []
+    },
+    {
+      "id": "db-connection-prod",
+      "locked": true,
+      "name": "Production DB (locked)",
+      "args": "--host prod.db.internal --port 5432 --ssl",
+      "expr": "postgresql://prod.db.internal:5432/proddb?ssl=true",
+      "depends": []
+    },
+    {
+      "id": "api-credentials",
+      "locked": false,
+      "name": "External API credentials",
+      "args": "--timeout 30 --retries 3",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "extract-users",
+      "locked": false,
+      "name": "Extract user data from API",
+      "args": "--batch-size 1000 --format json",
+      "expr": "",
+      "depends": ["api-credentials"]
+    },
+    {
+      "id": "extract-orders",
+      "locked": false,
+      "name": "Extract order data from DB",
+      "args": "--since '7 days ago' --limit 50000",
+      "expr": "",
+      "depends": ["db-connection"]
+    },
+    {
+      "id": "extract-products",
+      "locked": false,
+      "name": "Extract product catalog",
+      "args": "--include-inactive",
+      "expr": "",
+      "depends": ["db-connection"]
+    },
+    {
+      "id": "transform-normalize",
+      "locked": false,
+      "name": "Normalize and dedupe records",
+      "args": "--dedup-key id --case-insensitive",
+      "expr": "",
+      "depends": ["extract-users", "extract-orders"]
+    },
+    {
+      "id": "transform-enrich",
+      "locked": false,
+      "name": "Enrich with product data",
+      "args": "--join-key product_id",
+      "expr": "",
+      "depends": ["transform-normalize", "extract-products"]
+    },
+    {
+      "id": "transform-aggregate",
+      "locked": false,
+      "name": "Aggregate metrics by user",
+      "args": "--group-by user_id --metrics sum,avg,count",
+      "expr": "",
+      "depends": ["transform-enrich"]
+    },
+    {
+      "id": "validate-schema",
+      "locked": false,
+      "name": "Validate output schema",
+      "args": "--strict --schema ./schemas/output.json",
+      "expr": "",
+      "depends": ["transform-aggregate"]
+    },
+    {
+      "id": "load-warehouse",
+      "locked": false,
+      "name": "Load to data warehouse",
+      "args": "--table analytics.user_metrics --mode upsert",
+      "expr": "",
+      "depends": ["validate-schema", "db-connection"]
+    },
+    {
+      "id": "load-warehouse-prod",
+      "locked": true,
+      "name": "Load to PROD warehouse",
+      "args": "--table analytics.user_metrics --mode upsert --confirm",
+      "expr": "",
+      "depends": ["validate-schema", "db-connection-prod"]
+    },
+    {
+      "id": "notify-slack",
+      "locked": false,
+      "name": "Send Slack notification",
+      "args": "--channel #data-alerts --mention @oncall",
+      "expr": "",
+      "depends": ["load-warehouse"]
+    },
+    {
+      "id": "cleanup-temp",
+      "locked": false,
+      "name": "Clean up temp files",
+      "args": "--older-than '1 hour'",
+      "expr": "",
+      "depends": ["load-warehouse", "notify-slack"]
+    }
+  ],
+  "history": [],
+  "playheadIndex": 0
+}

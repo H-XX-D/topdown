@@ -1,0 +1,344 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "id": "toolchain-clang",
+      "locked": false,
+      "name": "Clang toolchain",
+      "args": "--cc clang --cxx clang++ --linker lld",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "toolchain-gcc",
+      "locked": false,
+      "name": "GCC toolchain",
+      "args": "--cc gcc --cxx g++ --linker ld",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "opt-debug",
+      "locked": false,
+      "name": "Debug optimization",
+      "args": "-O0 -g -DDEBUG",
+      "expr": "0",
+      "depends": []
+    },
+    {
+      "id": "opt-release",
+      "locked": false,
+      "name": "Release optimization",
+      "args": "-O3 -DNDEBUG -flto",
+      "expr": "3",
+      "depends": []
+    },
+    {
+      "id": "opt-size",
+      "locked": false,
+      "name": "Size optimization",
+      "args": "-Os -DNDEBUG -ffunction-sections",
+      "expr": "s",
+      "depends": []
+    },
+    {
+      "id": "warn-strict",
+      "locked": false,
+      "name": "Strict warnings",
+      "args": "-Wall -Wextra -Werror -Wpedantic",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "warn-relaxed",
+      "locked": false,
+      "name": "Relaxed warnings",
+      "args": "-Wall",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "feature-sanitizers",
+      "locked": false,
+      "name": "Enable sanitizers",
+      "args": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+      "expr": "asan,ubsan",
+      "depends": ["opt-debug"]
+    },
+    {
+      "id": "feature-coverage",
+      "locked": false,
+      "name": "Code coverage",
+      "args": "--coverage -fprofile-arcs -ftest-coverage",
+      "expr": "",
+      "depends": ["opt-debug"]
+    },
+    {
+      "id": "feature-profiling",
+      "locked": false,
+      "name": "Profiling support",
+      "args": "-pg -fno-omit-frame-pointer",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "platform-linux",
+      "locked": false,
+      "name": "Linux platform",
+      "args": "-DPLATFORM_LINUX -lpthread -ldl",
+      "expr": "linux",
+      "depends": []
+    },
+    {
+      "id": "platform-macos",
+      "locked": false,
+      "name": "macOS platform",
+      "args": "-DPLATFORM_MACOS -framework CoreFoundation",
+      "expr": "darwin",
+      "depends": []
+    },
+    {
+      "id": "platform-windows",
+      "locked": false,
+      "name": "Windows platform",
+      "args": "-DPLATFORM_WINDOWS -lws2_32 -ladvapi32",
+      "expr": "win32",
+      "depends": []
+    },
+    {
+      "id": "lib-core",
+      "locked": false,
+      "name": "Core library",
+      "args": "src/core/*.c",
+      "expr": "libcore.a",
+      "scope": "library",
+      "depends": []
+    },
+    {
+      "id": "lib-utils",
+      "locked": false,
+      "name": "Utilities library",
+      "args": "src/utils/*.c",
+      "expr": "libutils.a",
+      "scope": "library",
+      "depends": ["lib-core"]
+    },
+    {
+      "id": "lib-network",
+      "locked": false,
+      "name": "Network library",
+      "args": "src/network/*.c",
+      "expr": "libnetwork.a",
+      "scope": "library",
+      "depends": ["lib-core", "lib-utils"]
+    },
+    {
+      "id": "lib-crypto",
+      "locked": true,
+      "name": "Crypto library (audited)",
+      "args": "src/crypto/*.c",
+      "expr": "libcrypto.a",
+      "scope": "library",
+      "depends": ["lib-core"]
+    },
+    {
+      "id": "lib-storage",
+      "locked": false,
+      "name": "Storage library",
+      "args": "src/storage/*.c",
+      "expr": "libstorage.a",
+      "scope": "library",
+      "depends": ["lib-core", "lib-utils", "lib-crypto"]
+    },
+    {
+      "id": "bin-server",
+      "locked": false,
+      "name": "Server binary",
+      "args": "src/server/main.c",
+      "expr": "server",
+      "scope": "binary",
+      "depends": ["lib-core", "lib-utils", "lib-network", "lib-storage"]
+    },
+    {
+      "id": "bin-client",
+      "locked": false,
+      "name": "Client binary",
+      "args": "src/client/main.c",
+      "expr": "client",
+      "scope": "binary",
+      "depends": ["lib-core", "lib-utils", "lib-network"]
+    },
+    {
+      "id": "bin-cli",
+      "locked": false,
+      "name": "CLI tool",
+      "args": "src/cli/main.c",
+      "expr": "cli",
+      "scope": "binary",
+      "depends": ["lib-core", "lib-utils"]
+    },
+    {
+      "id": "test-unit-core",
+      "locked": false,
+      "name": "Core unit tests",
+      "args": "tests/unit/core/*.c",
+      "expr": "test_core",
+      "scope": "test",
+      "depends": ["lib-core"]
+    },
+    {
+      "id": "test-unit-utils",
+      "locked": false,
+      "name": "Utils unit tests",
+      "args": "tests/unit/utils/*.c",
+      "expr": "test_utils",
+      "scope": "test",
+      "depends": ["lib-utils"]
+    },
+    {
+      "id": "test-unit-network",
+      "locked": false,
+      "name": "Network unit tests",
+      "args": "tests/unit/network/*.c",
+      "expr": "test_network",
+      "scope": "test",
+      "depends": ["lib-network"]
+    },
+    {
+      "id": "test-unit-crypto",
+      "locked": true,
+      "name": "Crypto unit tests (critical)",
+      "args": "tests/unit/crypto/*.c",
+      "expr": "test_crypto",
+      "scope": "test",
+      "depends": ["lib-crypto"]
+    },
+    {
+      "id": "test-integration",
+      "locked": false,
+      "name": "Integration tests",
+      "args": "tests/integration/*.c",
+      "expr": "test_integration",
+      "scope": "test",
+      "depends": ["bin-server", "bin-client"]
+    },
+    {
+      "id": "test-e2e",
+      "locked": true,
+      "name": "E2E tests (slow)",
+      "args": "tests/e2e/*.py --timeout 300",
+      "expr": "",
+      "scope": "test",
+      "depends": ["test-integration"]
+    },
+    {
+      "id": "profile-dev",
+      "locked": false,
+      "name": "Development profile",
+      "args": "",
+      "expr": "",
+      "scope": "profile",
+      "depends": ["toolchain-clang", "opt-debug", "warn-strict", "feature-sanitizers", "platform-macos"]
+    },
+    {
+      "id": "profile-ci",
+      "locked": false,
+      "name": "CI profile",
+      "args": "",
+      "expr": "",
+      "scope": "profile",
+      "depends": ["toolchain-gcc", "opt-debug", "warn-strict", "feature-coverage", "platform-linux"]
+    },
+    {
+      "id": "profile-release",
+      "locked": true,
+      "name": "Release profile",
+      "args": "",
+      "expr": "",
+      "scope": "profile",
+      "depends": ["toolchain-clang", "opt-release", "warn-relaxed", "platform-linux"]
+    },
+    {
+      "id": "package-tarball",
+      "locked": false,
+      "name": "Create tarball",
+      "args": "--format tar.gz --include bin,lib,docs",
+      "expr": "dist/project-${VERSION}.tar.gz",
+      "scope": "package",
+      "depends": ["bin-server", "bin-client", "bin-cli"]
+    },
+    {
+      "id": "package-deb",
+      "locked": false,
+      "name": "Debian package",
+      "args": "--maintainer 'Dev <dev@example.com>' --section utils",
+      "expr": "dist/project_${VERSION}_amd64.deb",
+      "scope": "package",
+      "depends": ["package-tarball", "platform-linux"]
+    },
+    {
+      "id": "package-rpm",
+      "locked": false,
+      "name": "RPM package",
+      "args": "--release 1 --license MIT",
+      "expr": "dist/project-${VERSION}.x86_64.rpm",
+      "scope": "package",
+      "depends": ["package-tarball", "platform-linux"]
+    },
+    {
+      "id": "package-docker",
+      "locked": true,
+      "name": "Docker image",
+      "args": "--base alpine:3.18 --expose 8080,8443",
+      "expr": "project:${VERSION}",
+      "scope": "package",
+      "depends": ["bin-server", "platform-linux"]
+    },
+    {
+      "id": "deploy-staging",
+      "locked": false,
+      "name": "Deploy to staging",
+      "args": "--env staging --replicas 2",
+      "expr": "",
+      "scope": "deploy",
+      "depends": ["package-docker", "test-integration"]
+    },
+    {
+      "id": "deploy-production",
+      "locked": true,
+      "name": "Deploy to production",
+      "args": "--env production --replicas 5 --canary 10%",
+      "expr": "",
+      "scope": "deploy",
+      "depends": ["deploy-staging", "test-e2e"]
+    },
+    {
+      "id": "cache-ccache",
+      "locked": false,
+      "name": "ccache settings",
+      "args": "--max-size 10G --compression",
+      "expr": "~/.ccache",
+      "depends": []
+    },
+    {
+      "id": "cache-sccache",
+      "locked": false,
+      "name": "sccache settings",
+      "args": "--s3-bucket build-cache --region us-east-1",
+      "expr": "",
+      "depends": []
+    },
+    {
+      "id": "parallel-jobs",
+      "locked": false,
+      "name": "Parallel build jobs",
+      "args": "-j",
+      "expr": "8",
+      "depends": []
+    }
+  ],
+  "history": [
+    {"ts": 1705276800000, "kind": "init.empty", "label": "Initial config"}
+  ],
+  "playheadIndex": 0
+}

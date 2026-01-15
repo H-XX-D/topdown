@@ -1,0 +1,29 @@
+# Top-Down Config Validation
+# Add this to your repo to validate configs on every PR
+
+name: Validate Top-Down Config
+
+on:
+  push:
+    paths:
+      - '.topdown/**'
+  pull_request:
+    paths:
+      - '.topdown/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Top-Down config
+        run: |
+          python python/topdown_cli.py validate --strict
+        env:
+          TOPDOWN_ROOT: ${{ github.workspace }}

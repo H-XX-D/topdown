@@ -113,7 +113,6 @@ type DependencyNode = {
 
 type DependencyGraph = Map<string, DependencyNode>;
 
-// @td:buildDependencyGraph_2
 function buildDependencyGraph(rows: ConfigRow[]): DependencyGraph {
   const graph: DependencyGraph = new Map();
 
@@ -139,14 +138,12 @@ function buildDependencyGraph(rows: ConfigRow[]): DependencyGraph {
   return graph;
 }
 
-// @td:detectCycles_2
 function detectCycles(graph: DependencyGraph): string[][] {
   const cycles: string[][] = [];
   const visited = new Set<string>();
   const recursionStack = new Set<string>();
   const path: string[] = [];
 
-  // @td:dfs_2
   function dfs(nodeId: string): boolean {
     visited.add(nodeId);
     recursionStack.add(nodeId);
@@ -180,14 +177,12 @@ function detectCycles(graph: DependencyGraph): string[][] {
   return cycles;
 }
 
-// @td:topologicalSort_2
 function topologicalSort(graph: DependencyGraph): { sorted: string[]; hasCycle: boolean } {
   const inDegree = new Map<string, number>();
   const sorted: string[] = [];
 
   // Initialize in-degrees
   for (const [id, node] of graph) {
-    // @td:node.depends.filter() callback_2
     inDegree.set(id, node.depends.filter(d => graph.has(d)).length);
   }
 
@@ -217,12 +212,10 @@ function topologicalSort(graph: DependencyGraph): { sorted: string[]; hasCycle: 
   };
 }
 
-// @td:getAffectedDownstream_2
 function getAffectedDownstream(graph: DependencyGraph, changedId: string): string[] {
   const affected: string[] = [];
   const visited = new Set<string>();
 
-  // @td:traverse_2
   function traverse(id: string) {
     if (visited.has(id)) return;
     visited.add(id);
@@ -240,11 +233,9 @@ function getAffectedDownstream(graph: DependencyGraph, changedId: string): strin
   return affected;
 }
 
-// @td:computeMaxDepth_2
 function computeMaxDepth(graph: DependencyGraph): number {
   const depths = new Map<string, number>();
 
-  // @td:getDepth_2
   function getDepth(id: string, visited: Set<string>): number {
     if (visited.has(id)) return 0; // Cycle detected
     if (depths.has(id)) return depths.get(id)!;
@@ -285,7 +276,6 @@ type ValidationResult = {
   warnings: string[];
 };
 
-// @td:validateArgs_2
 function validateArgs(args: string, schema?: { argsPattern?: string; argsType?: string; requiredArgs?: string[] }): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -363,7 +353,6 @@ type SpeculativeValidation = {
   affectedRows: string[];
 };
 
-// @td:speculativeValidate_2
 function speculativeValidate(rows: ConfigRow[], schema?: ConfigStoreV1['schema']): SpeculativeValidation {
   const result: SpeculativeValidation = {
     hasIssues: false,
@@ -373,7 +362,6 @@ function speculativeValidate(rows: ConfigRow[], schema?: ConfigStoreV1['schema']
     affectedRows: [],
   };
 
-  // @td:rows.map() callback_19
   const rowIds = new Set(rows.map(r => r.id));
 
   // Check for cycles
@@ -417,14 +405,12 @@ function speculativeValidate(rows: ConfigRow[], schema?: ConfigStoreV1['schema']
 
 const STORE_RELATIVE = '.topdown/config.json';
 
-// @td:getWorkspaceRoot_2
 function getWorkspaceRoot(): vscode.Uri | undefined {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) return undefined;
   return folders[0].uri;
 }
 
-// @td:readStore_2
 async function readStore(): Promise<ConfigStoreV1> {
   const root = getWorkspaceRoot();
   if (!root) return { version: 1, rows: [], history: [] };
@@ -439,11 +425,9 @@ async function readStore(): Promise<ConfigStoreV1> {
     }
     return {
       version: 1,
-      // @td:parsed.rows.filter() callback_2
       rows: parsed.rows.filter((r): r is ConfigRow => !!r && typeof (r as any).id === 'string'),
       playheadIndex: typeof parsed.playheadIndex === 'number' ? parsed.playheadIndex : undefined,
       history: Array.isArray(parsed.history)
-        // @td:parsed.history.filter() callback_2
         ? parsed.history.filter((h) => h && typeof (h as any).label === 'string')
         : [],
     };
@@ -456,7 +440,6 @@ async function readStore(): Promise<ConfigStoreV1> {
 const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const MAX_AUTO_BACKUPS = 10;
 
-// @td:writeStore_2
 async function writeStore(store: ConfigStoreV1): Promise<void> {
   const root = getWorkspaceRoot();
   if (!root) return;
@@ -482,7 +465,6 @@ async function writeStore(store: ConfigStoreV1): Promise<void> {
   await vscode.workspace.fs.writeFile(uri, Buffer.from(text, 'utf8'));
 }
 
-// @td:createAutoBackup_2
 async function createAutoBackup(root: vscode.Uri, store: ConfigStoreV1): Promise<void> {
   try {
     const backupsDir = vscode.Uri.joinPath(root, '.topdown', 'backups', 'auto');
@@ -501,14 +483,11 @@ async function createAutoBackup(root: vscode.Uri, store: ConfigStoreV1): Promise
   }
 }
 
-// @td:cleanupAutoBackups_2
 async function cleanupAutoBackups(backupsDir: vscode.Uri, maxBackups: number): Promise<void> {
   try {
     const entries = await vscode.workspace.fs.readDirectory(backupsDir);
     const backupFiles = entries
-      // @td:entries.filter() callback_6
       .filter(([name, type]) => type === vscode.FileType.File && name.startsWith('config-') && name.endsWith('.json'))
-      // @td:map() callback_33
       .map(([name]) => name)
       .sort()
       .reverse();
@@ -525,7 +504,6 @@ async function cleanupAutoBackups(backupsDir: vscode.Uri, maxBackups: number): P
   }
 }
 
-// @td:isLikelyRowId_2
 function isLikelyRowId(s: string): boolean {
   const t = (s || '').trim();
   if (!t) return false;
@@ -534,12 +512,10 @@ function isLikelyRowId(s: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_.-]{1,64}$/.test(t);
 }
 
-// @td:escapeRegExp_2
 function escapeRegExp(s: string): string {
   return (s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// @td:nextVariantId_2
 function nextVariantId(fromId: string, existingIds: Set<string>): string {
   const trimmed = (fromId || '').trim();
   const m = /^(.*?)-(\d+)$/.exec(trimmed);
@@ -557,7 +533,6 @@ function nextVariantId(fromId: string, existingIds: Set<string>): string {
   return `${base}-${next}`;
 }
 
-// @td:pickRow_2
 async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
   const s = store ?? (await readStore());
   const rows = (s.rows ?? []).slice();
@@ -569,9 +544,7 @@ async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
   const picked = await vscode.window.showQuickPick(
     rows
       .slice()
-      // @td:sort() callback_16
       .sort((a, b) => a.id.localeCompare(b.id))
-      // @td:map() callback_32
       .map((r) => ({
         label: r.id,
         description: r.locked ? 'locked' : undefined,
@@ -583,7 +556,6 @@ async function pickRow(store?: ConfigStoreV1): Promise<ConfigRow | undefined> {
   return picked?.row;
 }
 
-// @td:insertTextIntoActiveEditor_2
 async function insertTextIntoActiveEditor(text: string): Promise<boolean> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
@@ -591,7 +563,6 @@ async function insertTextIntoActiveEditor(text: string): Promise<boolean> {
     return false;
   }
 
-  // @td:editor.edit() callback_10
   await editor.edit((b) => {
     const sel = editor.selection;
     if (!sel.isEmpty) b.replace(sel, text);
@@ -600,14 +571,12 @@ async function insertTextIntoActiveEditor(text: string): Promise<boolean> {
   return true;
 }
 
-// @td:getLinePrefix_2
 function getLinePrefix(document: vscode.TextDocument, position: vscode.Position, maxChars = 64): string {
   const line = document.lineAt(position.line).text;
   const upto = line.slice(0, position.character);
   return upto.length > maxChars ? upto.slice(upto.length - maxChars) : upto;
 }
 
-// @td:ConfigPanelProvider_2
 class ConfigPanelProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'topdown.configPanel';
 
@@ -616,7 +585,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
-  // @td:notifySourceChange_2
   notifySourceChange(rowIds: string[]): void {
     for (const id of rowIds) {
       this.changedSourceRows.add(id);
@@ -630,7 +598,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  // @td:clearSourceChanges_2
   clearSourceChanges(): void {
     this.changedSourceRows.clear();
     if (this.view) {
@@ -640,7 +607,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
   private popOutPanel?: vscode.WebviewPanel;
 
-  // @td:createPopOutPanel
   async createPopOutPanel(): Promise<void> {
     // If panel already exists, reveal it
     if (this.popOutPanel) {
@@ -664,7 +630,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     await this.renderPopOutPanel();
 
     // Handle messages from the pop-out panel
-    // @td:popOutPanel.webview.onDidReceiveMessage() callback
     this.popOutPanel.webview.onDidReceiveMessage(async (msg: unknown) => {
       if (!msg || typeof msg !== 'object') return;
       // Forward to the main view's message handler by triggering a refresh
@@ -684,7 +649,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         }
       } else if (m.type === 'addRow') {
         const store = await readStore();
-        // @td:map() callback_31
         const existingIds = new Set((store.rows ?? []).map(r => r.id));
         const newId = nextVariantId('row', existingIds);
         const newRow: ConfigRow = { id: newId, locked: false, name: '', args: '', expr: '' };
@@ -693,7 +657,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         await this.renderPopOutPanel();
       } else if (m.type === 'deleteRow' && typeof m.id === 'string') {
         const store = await readStore();
-        // @td:filter() callback_7
         store.rows = (store.rows ?? []).filter(r => r.id !== m.id);
         await writeStore(store);
         await this.renderPopOutPanel();
@@ -709,13 +672,11 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     });
 
     // Clean up when panel is closed
-    // @td:popOutPanel.onDidDispose() callback
     this.popOutPanel.onDidDispose(() => {
       this.popOutPanel = undefined;
     });
   }
 
-  // @td:renderPopOutPanel
   private async renderPopOutPanel(): Promise<void> {
     if (!this.popOutPanel) return;
 
@@ -889,8 +850,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 <body>
   <div class="header">
     <span class="title">⚡ Top-Down Config</span>
-    // @td:rows.filter() callback_13
-    // @td:rows.filter() callback_14
     <span class="stats">${rows.length} rows${rows.filter(r => r.locked).length > 0 ? ` • ${rows.filter(r => r.locked).length} locked` : ''}</span>
   </div>
   <div style="margin-bottom: 12px;">
@@ -899,7 +858,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
   </div>
   <div class="rows-list">
     ${rows.length === 0 ? '<div class="empty-state">No config rows yet. Click "+ Add Row" to create one.</div>' : ''}
-    // @td:rows.map() callback_18
     ${rows.map((r, i) => `
       <div class="row-card ${r.locked ? 'locked' : ''}" data-index="${i}">
         <div class="row-header">
@@ -980,7 +938,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 </html>`;
   }
 
-  // @td:resolveWebviewView_2
   async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
     this.view = webviewView;
     webviewView.webview.options = {
@@ -988,7 +945,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.context.extensionUri],
     };
 
-    // @td:webviewView.webview.onDidReceiveMessage() callback_2
     webviewView.webview.onDidReceiveMessage(async (msg: unknown) => {
       if (!msg || typeof msg !== 'object') return;
       const m = msg as { type?: unknown };
@@ -1035,11 +991,8 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
           let depends: string[] = [];
           if (Array.isArray(o.depends)) {
-            // @td:map() callback_30
-            // @td:o.depends.filter() callback_4
             depends = o.depends.filter((d: unknown) => typeof d === 'string' && d.trim()).map((d: string) => d.trim());
           } else if (typeof o.depends === 'string') {
-            // @td:map() callback_29
             depends = o.depends.split(',').map((s: string) => s.trim()).filter(Boolean);
           }
 
@@ -1129,9 +1082,7 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         const currentRows = store.rows ?? [];
         const snapshotRows = targetEntry.rowsSnapshot;
 
-        // @td:currentRows.map() callback_2
         const currentIds = new Set(currentRows.map(r => r.id));
-        // @td:snapshotRows.map() callback_2
         const snapshotIds = new Set(snapshotRows.map(r => r.id));
 
         const added: Array<{ id: string; name: string }> = [];
@@ -1154,7 +1105,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
         // Find modified rows
         for (const currentRow of currentRows) {
-          // @td:snapshotRows.find() callback_2
           const snapshotRow = snapshotRows.find(r => r.id === currentRow.id);
           if (snapshotRow) {
             const changes: string[] = [];
@@ -1237,7 +1187,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
         const store = await readStore();
         const rows = store.rows ?? [];
-        // @td:rows.find() callback_6
         const row = rows.find((r) => r.id === id);
         if (!row) return;
 
@@ -1258,7 +1207,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         if (!picked) return;
 
         if (picked.action === 'variant') {
-          // @td:rows.map() callback_17
           const existingIds = new Set(rows.map((r) => (r.id || '').trim()).filter(Boolean));
           const newId = nextVariantId(id, existingIds);
           const variant: ConfigRow = { ...row, id: newId, locked: false };
@@ -1268,7 +1216,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             ts: Date.now(),
             kind: 'row.variant',
             label: `+ ${newId} (from ${id})`,
-            // @td:store.rows.map() callback_20
             rowsSnapshot: store.rows.map(r => ({ ...r })),
           });
           await writeStore(store);
@@ -1331,7 +1278,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             for (let i = 0; i < levels.length; i++) {
               lines.push(`Level ${i + 1} (${levels[i].length} rows):`);
               for (const affId of levels[i].slice(0, 10)) {
-                // @td:rows.find() callback_5
                 const affRow = rows.find(r => r.id === affId);
                 const locked = affRow?.locked ? ' [LOCKED]' : '';
                 lines.push(`  → ${affId}${locked}`);
@@ -1368,11 +1314,8 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           // Parse depends - can be array or comma-separated string
           let depends: string[] = [];
           if (Array.isArray(o.depends)) {
-            // @td:map() callback_28
-            // @td:o.depends.filter() callback_3
             depends = o.depends.filter((d: unknown) => typeof d === 'string' && d.trim()).map((d: string) => d.trim());
           } else if (typeof o.depends === 'string') {
-            // @td:map() callback_27
             depends = o.depends.split(',').map((s: string) => s.trim()).filter(Boolean);
           }
 
@@ -1392,7 +1335,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         const cycles = detectCycles(graph);
 
         if (cycles.length > 0) {
-          // @td:cycles.map() callback_2
           const cycleStr = cycles.map(c => c.join(' -> ')).join('; ');
           vscode.window.showWarningMessage(`Top-Down: Circular dependencies detected: ${cycleStr}`);
         }
@@ -1405,7 +1347,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           ts: Date.now(),
           kind: 'table.save',
           label: `Saved ${rows.length} row(s)`,
-          // @td:rows.map() callback_16
           rowsSnapshot: rows.map(r => ({ ...r })),  // Deep copy of rows
         });
         await writeStore(store);
@@ -1424,7 +1365,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           ts: Date.now(),
           kind: 'row.add',
           label: `+ ${id}`,
-          // @td:store.rows.map() callback_19
           rowsSnapshot: store.rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1436,7 +1376,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         const payload = msg as { templateId?: unknown };
         const templateId = typeof payload.templateId === 'string' ? payload.templateId : 'empty';
 
-        // @td:BUILTIN_TEMPLATES.find() callback_2
         const template = BUILTIN_TEMPLATES.find(t => t.id === templateId) ?? BUILTIN_TEMPLATES[0];
         const store = await readStore();
         const n = (store.rows?.length ?? 0) + 1;
@@ -1460,7 +1399,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           ts: Date.now(),
           kind: 'row.add.template',
           label: `+ ${id} (from ${template.name})`,
-          // @td:store.rows.map() callback_18
           rowsSnapshot: store.rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1469,7 +1407,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
       // Show template picker
       if (m.type === 'showTemplatePicker') {
-        // @td:BUILTIN_TEMPLATES.map() callback_2
         const items = BUILTIN_TEMPLATES.map(t => ({
           label: t.name,
           description: t.description,
@@ -1498,7 +1435,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
         const store = await readStore();
         const rows = store.rows ?? [];
-        // @td:rows.find() callback_4
         const row = rows.find(r => r.id === id);
         if (!row) return;
 
@@ -1508,7 +1444,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           ts: Date.now(),
           kind: row.pinned ? 'row.pin' : 'row.unpin',
           label: `${row.pinned ? 'Pinned' : 'Unpinned'} ${id}`,
-          // @td:rows.map() callback_15
           rowsSnapshot: rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1519,7 +1454,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       if (m.type === 'bulkAction') {
         const payload = msg as { action?: unknown; ids?: unknown };
         const action = typeof payload.action === 'string' ? payload.action : '';
-        // @td:payload.ids.filter() callback_4
         const ids = Array.isArray(payload.ids) ? payload.ids.filter((id): id is string => typeof id === 'string') : [];
         if (!action || ids.length === 0) return;
 
@@ -1528,7 +1462,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         const idSet = new Set(ids);
 
         if (action === 'delete') {
-          // @td:rows.filter() callback_12
           rows = rows.filter(r => !idSet.has(r.id));
           store.rows = rows;
           store.history = store.history ?? [];
@@ -1536,7 +1469,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             ts: Date.now(),
             kind: 'bulk.delete',
             label: `Deleted ${ids.length} row(s)`,
-            // @td:rows.map() callback_14
             rowsSnapshot: rows.map(r => ({ ...r })),
           });
         } else {
@@ -1552,7 +1484,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             ts: Date.now(),
             kind: `bulk.${action}`,
             label: `${action.charAt(0).toUpperCase() + action.slice(1)}ed ${ids.length} row(s)`,
-            // @td:rows.map() callback_13
             rowsSnapshot: rows.map(r => ({ ...r })),
           });
         }
@@ -1570,9 +1501,7 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
 
         const store = await readStore();
         const rows = store.rows ?? [];
-        // @td:rows.findIndex() callback_4
         const fromIdx = rows.findIndex(r => r.id === fromId);
-        // @td:rows.findIndex() callback_3
         const toIdx = rows.findIndex(r => r.id === toId);
         if (fromIdx === -1 || toIdx === -1) return;
 
@@ -1586,7 +1515,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           ts: Date.now(),
           kind: 'row.reorder',
           label: `Moved ${fromId} ${fromIdx < toIdx ? 'down' : 'up'}`,
-          // @td:rows.map() callback_12
           rowsSnapshot: rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1633,7 +1561,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             if (row.expr) content += `expr = "${row.expr}"\n`;
             if (row.scope) content += `scope = "${row.scope}"\n`;
             if (row.depends && row.depends.length > 0) {
-              // @td:row.depends.map() callback_2
               content += `depends = [${row.depends.map(d => `"${d}"`).join(', ')}]\n`;
             }
             if (row.pinned) content += `pinned = true\n`;
@@ -1711,14 +1638,12 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        // @td:restoreFrom.rowsSnapshot.map() callback_2
         store.rows = restoreFrom.rowsSnapshot.map(r => ({ ...r }));
         store.history = store.history ?? [];
         store.history.push({
           ts: Date.now(),
           kind: 'undo',
           label: `Undo to: ${restoreFrom.label}`,
-          // @td:store.rows.map() callback_17
           rowsSnapshot: store.rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1752,7 +1677,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
               ts: Date.now(),
               kind: 'import.clipboard',
               label: `Imported ${newRows.length} row(s) from clipboard`,
-              // @td:store.rows.map() callback_16
               rowsSnapshot: store.rows.map(r => ({ ...r })),
             });
             await writeStore(store);
@@ -1839,7 +1763,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             ts: Date.now(),
             kind: `import.${format}`,
             label: `Imported ${newRows.length} row(s) from ${format.toUpperCase()}`,
-            // @td:store.rows.map() callback_15
             rowsSnapshot: store.rows.map(r => ({ ...r })),
           });
           await writeStore(store);
@@ -1864,7 +1787,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           id: `bm-${Date.now()}`,
           name,
           ts: Date.now(),
-          // @td:map() callback_26
           rowsSnapshot: (store.rows ?? []).map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1879,21 +1801,18 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         if (!id) return;
 
         const store = await readStore();
-        // @td:find() callback_6
         const bookmark = (store.bookmarks ?? []).find(b => b.id === id);
         if (!bookmark || !bookmark.rowsSnapshot) {
           vscode.window.showErrorMessage('Bookmark not found');
           return;
         }
 
-        // @td:bookmark.rowsSnapshot.map() callback_2
         store.rows = bookmark.rowsSnapshot.map(r => ({ ...r }));
         store.history = store.history ?? [];
         store.history.push({
           ts: Date.now(),
           kind: 'bookmark.restore',
           label: `Restored bookmark: ${bookmark.name}`,
-          // @td:store.rows.map() callback_14
           rowsSnapshot: store.rows.map(r => ({ ...r })),
         });
         await writeStore(store);
@@ -1908,7 +1827,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         if (!id) return;
 
         const store = await readStore();
-        // @td:filter() callback_6
         store.bookmarks = (store.bookmarks ?? []).filter(b => b.id !== id);
         await writeStore(store);
         await this.render();
@@ -1918,7 +1836,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       if (m.type === 'runHealthCheck') {
         const store = await readStore();
         const rows = store.rows ?? [];
-        // @td:rows.map() callback_11
         const rowIds = new Set(rows.map(r => r.id));
         const issues: Array<{ type: string; message: string }> = [];
 
@@ -1959,12 +1876,10 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       // Compare rows
       if (m.type === 'compareRows') {
         const payload = msg as { ids?: unknown };
-        // @td:payload.ids.filter() callback_3
         const ids = Array.isArray(payload.ids) ? payload.ids.filter((id): id is string => typeof id === 'string') : [];
         if (ids.length !== 2) return;
 
         const store = await readStore();
-        // @td:filter() callback_5
         const rows = (store.rows ?? []).filter(r => ids.includes(r.id));
         this.view?.webview.postMessage({ type: 'showComparison', rows });
       }
@@ -1977,7 +1892,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         if (!id) return;
 
         const store = await readStore();
-        // @td:find() callback_5
         const row = (store.rows ?? []).find(r => r.id === id);
         if (!row) return;
 
@@ -1990,7 +1904,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     await this.render();
   }
 
-  // @td:render_2
   async render(): Promise<void> {
     if (!this.view) return;
     const webview = this.view.webview;
@@ -2002,7 +1915,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     const playhead = typeof store.playheadIndex === 'number' ? store.playheadIndex : history.length - 1;
 
     const stepsNewestFirst = history
-      // @td:history.map() callback_4
       .map((h, idx) => ({
         idx,
         ts: h.ts,
@@ -2011,7 +1923,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         hasSnapshot: !!(h as HistoryEntry).rowsSnapshot,
       }))
       .slice()
-      // @td:sort() callback_15
       .sort((a, b) => b.idx - a.idx);
 
     // Build dependency graph for visualization
@@ -2019,72 +1930,70 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     const cycles = detectCycles(graph);
     const cycleIds = new Set(cycles.flat());
 
-    // Generate DAG layout data - radial layout with most connected node in center
-    const dagNodes: Array<{ id: string; x: number; y: number; connections: number; hasCycle: boolean }> = [];
+    // Generate DAG layout data for visual rendering
+    const { sorted: topoOrder, hasCycle } = topologicalSort(graph);
+    const dagNodes: Array<{ id: string; x: number; y: number; level: number; hasCycle: boolean }> = [];
     const dagEdges: Array<{ from: string; to: string; fromX: number; fromY: number; toX: number; toY: number }> = [];
 
-    // Calculate connection count for each node (depends + dependents)
-    const connectionCount = new Map<string, number>();
-    for (const [id, node] of graph) {
-      const count = node.depends.length + node.dependents.length;
-      connectionCount.set(id, count);
-    }
+    // Calculate levels for each node (topological depth)
+    const nodeLevel = new Map<string, number>();
+    const levelNodes = new Map<number, string[]>();
 
-    // Sort nodes by connection count (most connected first)
-    const sortedByConnections = Array.from(graph.keys()).sort((a, b) => {
-      return (connectionCount.get(b) ?? 0) - (connectionCount.get(a) ?? 0);
-    });
+    if (!hasCycle && topoOrder.length > 0) {
+      for (const id of topoOrder) {
+        const node = graph.get(id);
+        if (!node) continue;
 
-    // Radial layout settings
-    const centerX = 300;
-    const centerY = 250;
-    const nodeRadius = 45;
-    const ringSpacing = 120;
-    const nodePositions = new Map<string, { x: number; y: number }>();
-
-    if (sortedByConnections.length > 0) {
-      // Place most connected node in center
-      const hubId = sortedByConnections[0];
-      nodePositions.set(hubId, { x: centerX, y: centerY });
-      dagNodes.push({
-        id: escapeHtml(hubId),
-        x: centerX - nodeRadius,
-        y: centerY - nodeRadius / 2,
-        connections: connectionCount.get(hubId) ?? 0,
-        hasCycle: cycleIds.has(hubId),
-      });
-
-      // Place remaining nodes in concentric rings
-      const remainingNodes = sortedByConnections.slice(1);
-      let ring = 1;
-      let nodesPlaced = 0;
-
-      while (nodesPlaced < remainingNodes.length) {
-        const ringRadius = ring * ringSpacing;
-        const nodesInRing = Math.min(Math.floor(2 * Math.PI * ringRadius / 100), remainingNodes.length - nodesPlaced);
-        const actualNodes = Math.min(nodesInRing || 6, remainingNodes.length - nodesPlaced);
-
-        for (let i = 0; i < actualNodes; i++) {
-          const nodeId = remainingNodes[nodesPlaced];
-          const angle = (2 * Math.PI * i) / actualNodes - Math.PI / 2;
-          const x = centerX + ringRadius * Math.cos(angle);
-          const y = centerY + ringRadius * Math.sin(angle);
-
-          nodePositions.set(nodeId, { x, y });
-          dagNodes.push({
-            id: escapeHtml(nodeId),
-            x: x - nodeRadius,
-            y: y - nodeRadius / 2,
-            connections: connectionCount.get(nodeId) ?? 0,
-            hasCycle: cycleIds.has(nodeId),
-          });
-          nodesPlaced++;
+        // Level is 1 + max level of dependencies
+        let maxDepLevel = -1;
+        for (const dep of node.depends) {
+          const depLevel = nodeLevel.get(dep);
+          if (depLevel !== undefined && depLevel > maxDepLevel) {
+            maxDepLevel = depLevel;
+          }
         }
-        ring++;
+        const level = maxDepLevel + 1;
+        nodeLevel.set(id, level);
+
+        if (!levelNodes.has(level)) levelNodes.set(level, []);
+        levelNodes.get(level)!.push(id);
+      }
+    } else {
+      // Fallback for cycles - just position in order
+      let idx = 0;
+      for (const [id] of graph) {
+        nodeLevel.set(id, idx % 5);
+        const level = idx % 5;
+        if (!levelNodes.has(level)) levelNodes.set(level, []);
+        levelNodes.get(level)!.push(id);
+        idx++;
       }
     }
 
-    // Generate edges (connection lines)
+    // Position nodes in a grid layout
+    const nodeWidth = 120;
+    const nodeHeight = 40;
+    const levelSpacing = 100;
+    const nodeSpacing = 60;
+    const nodePositions = new Map<string, { x: number; y: number }>();
+
+    for (const [level, nodes] of levelNodes) {
+      const levelX = 60 + level * (nodeWidth + levelSpacing);
+      const startY = 40;
+      nodes.forEach((id, idx) => {
+        const y = startY + idx * (nodeHeight + nodeSpacing);
+        nodePositions.set(id, { x: levelX, y });
+        dagNodes.push({
+          id: escapeHtml(id),
+          x: levelX,
+          y,
+          level,
+          hasCycle: cycleIds.has(id),
+        });
+      });
+    }
+
+    // Generate edges
     for (const [id, node] of graph) {
       const fromPos = nodePositions.get(id);
       if (!fromPos) continue;
@@ -2097,24 +2006,17 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           from: escapeHtml(id),
           to: escapeHtml(dep),
           fromX: fromPos.x,
-          fromY: fromPos.y,
-          toX: toPos.x,
-          toY: toPos.y,
+          fromY: fromPos.y + nodeHeight / 2,
+          toX: toPos.x + nodeWidth,
+          toY: toPos.y + nodeHeight / 2,
         });
       }
     }
 
-    // Calculate bounds for SVG
-    const allX = dagNodes.map(n => n.x);
-    const allY = dagNodes.map(n => n.y);
-    const minX = Math.min(0, ...allX) - 60;
-    const maxX = Math.max(600, ...allX) + 120;
-    const minY = Math.min(0, ...allY) - 60;
-    const maxY = Math.max(500, ...allY) + 100;
-    const dagWidth = maxX - minX;
-    const dagHeight = maxY - minY;
+    const dagWidth = Math.max(400, (levelNodes.size) * (nodeWidth + levelSpacing) + 100);
+    const maxNodesInLevel = Math.max(1, ...Array.from(levelNodes.values()).map(n => n.length));
+    const dagHeight = Math.max(200, maxNodesInLevel * (nodeHeight + nodeSpacing) + 60);
 
-    // @td:map() callback_24
     const rows = (store.rows ?? []).map((r) => {
       const node = graph.get(r.id);
       const dependents = node?.dependents ?? [];
@@ -2133,16 +2035,13 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         expr: escapeHtml(r.expr ?? ''),
         scope: escapeHtml(r.scope ?? ''),
         notes: escapeHtml(r.notes ?? ''),
-        // @td:depends.map() callback_2
         depends: depends.map(d => escapeHtml(d)),
-        // @td:dependents.map() callback_2
         dependents: dependents.map(d => escapeHtml(d)),
         impactCount,
         sourcesCount,
         status: hasCycle ? 'error' : (r.status ?? 'ok'),
         statusMessage: hasCycle ? 'Circular dependency detected' : (r.statusMessage ?? ''),
       };
-    // @td:sort() callback_14
     }).sort((a, b) => {
       // Pinned rows first
       if (a.pinned && !b.pinned) return -1;
@@ -2151,11 +2050,8 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     });
 
     const rowCount = rows.length;
-    // @td:rows.filter() callback_11
     const lockedCount = rows.filter(r => r.locked).length;
-    // @td:rows.filter() callback_10
     const errorCount = rows.filter(r => r.status === 'error').length;
-    // @td:rows.filter() callback_9
     const pinnedCount = rows.filter(r => r.pinned).length;
 
     // Compute statistics
@@ -2166,7 +2062,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     }
     const uniqueScopes = Object.keys(scopeCounts).length;
     const maxDependencyDepth = computeMaxDepth(graph);
-    // @td:rows.reduce() callback_2
     const totalDependencies = rows.reduce((sum, r) => sum + r.depends.length, 0);
 
     // Group rows by scope for collapsible sections
@@ -2178,7 +2073,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       }
       scopeGroups.get(scopeKey)!.push(r);
     }
-    // @td:sort() callback_13
     const sortedScopes = Array.from(scopeGroups.keys()).sort((a, b) => {
       if (a === '(No Scope)') return 1;
       if (b === '(No Scope)') return -1;
@@ -2212,9 +2106,7 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
             </div>
             ${(r.depends.length > 0 || r.dependents.length > 0) ? `
             <div class="deps-chips">
-              // @td:r.depends.map() callback_2
               ${r.depends.length > 0 ? `<span class="deps-label">Needs:</span> ${r.depends.map(d => `<span class="dep-chip" data-goto="${d}">${d}</span>`).join(' ')}` : ''}
-              // @td:r.dependents.map() callback_2
               ${r.dependents.length > 0 ? `<span class="deps-label" style="margin-left:12px;">Used by:</span> ${r.dependents.map(d => `<span class="dep-chip downstream" data-goto="${d}">${d}</span>`).join(' ')}` : ''}
             </div>` : ''}
             <div class="expanded-actions">
@@ -2856,31 +2748,8 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     .rows-grid {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 8px;
     }
-
-    /* Column Headers */
-    .rows-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--vscode-foreground);
-      opacity: 0.5;
-      border-bottom: 1px solid var(--td-card-border);
-      margin-bottom: 4px;
-    }
-
-    .col-expand { width: 18px; }
-    .col-id { min-width: 60px; }
-    .col-name { flex: 1.5; }
-    .col-args { flex: 1; }
-    .col-expr { flex: 2; }
-    .col-actions { width: 60px; text-align: right; }
 
     /* Compact Row Card */
     .row-card {
@@ -3360,7 +3229,7 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       display: block;
     }
 
-    /* DAG View - Radial layout */
+    /* DAG View */
     .dag-container {
       background: var(--td-card-bg);
       border: 1px solid var(--td-card-border);
@@ -3368,7 +3237,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       padding: 16px;
       overflow: auto;
       min-height: 300px;
-      position: relative;
     }
 
     .dag-svg {
@@ -3380,93 +3248,39 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       transition: all 0.15s ease;
     }
 
-    .dag-node .node-circle {
+    .dag-node:hover rect {
+      stroke: var(--td-accent);
+      stroke-width: 2;
+    }
+
+    .dag-node rect {
       fill: var(--td-card-bg);
       stroke: var(--td-card-border);
-      stroke-width: 2;
-      transition: all 0.15s ease;
+      stroke-width: 1;
+      rx: 6;
     }
 
-    .dag-node:hover .node-circle {
-      stroke: var(--td-accent);
-      stroke-width: 3;
-      filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.4));
-    }
-
-    .dag-node.hub .node-circle {
-      fill: rgba(124, 58, 237, 0.15);
-      stroke: var(--td-accent);
-      stroke-width: 3;
-    }
-
-    .dag-node.cycle .node-circle {
+    .dag-node.cycle rect {
       fill: rgba(239, 68, 68, 0.1);
       stroke: var(--td-error);
     }
 
-    .dag-node .node-label {
+    .dag-node text {
       fill: var(--vscode-foreground);
-      font-size: 10px;
-      font-weight: 600;
+      font-size: 11px;
       font-family: var(--vscode-editor-font-family), monospace;
     }
 
-    .dag-node.hub .node-label {
-      fill: var(--td-accent);
-      font-size: 11px;
-    }
-
-    .dag-node .node-count {
-      fill: var(--vscode-foreground);
-      font-size: 8px;
-      opacity: 0.6;
-    }
-
     .dag-edge {
-      stroke: rgba(124, 58, 237, 0.4);
+      stroke: var(--td-card-border);
       stroke-width: 1.5;
       fill: none;
+      marker-end: url(#arrowhead);
     }
 
     .dag-edge.highlighted {
       stroke: var(--td-accent);
-      stroke-width: 2.5;
-    }
-
-    .dag-legend {
-      display: flex;
-      gap: 16px;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--td-card-border);
-      font-size: 10px;
-      color: var(--vscode-foreground);
-      opacity: 0.7;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .legend-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 2px solid var(--td-card-border);
-      background: var(--td-card-bg);
-    }
-
-    .legend-dot.hub {
-      border-color: var(--td-accent);
-      background: rgba(124, 58, 237, 0.15);
-    }
-
-    .legend-line {
-      width: 20px;
-      height: 2px;
-      background: rgba(124, 58, 237, 0.4);
+      stroke-width: 2;
     }
 
     /* Speculative Preview Panel */
@@ -4187,29 +4001,28 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
     }
 
     /* DAG Path Highlighting */
-    .dag-node.highlighted .node-circle {
+    .dag-node.highlighted rect {
       stroke: var(--td-accent);
-      stroke-width: 3;
-      fill: rgba(124, 58, 237, 0.2);
-      filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.5));
+      stroke-width: 2;
+      fill: rgba(124, 58, 237, 0.1);
     }
 
     .dag-edge.path-highlighted {
       stroke: var(--td-accent);
-      stroke-width: 3;
+      stroke-width: 2.5;
       opacity: 1;
     }
 
     .dag-edge.dimmed {
-      opacity: 0.15;
+      opacity: 0.2;
     }
 
-    .dag-node.dimmed .node-circle {
-      opacity: 0.25;
+    .dag-node.dimmed rect {
+      opacity: 0.3;
     }
 
     .dag-node.dimmed text {
-      opacity: 0.25;
+      opacity: 0.3;
     }
   </style>
 </head>
@@ -4321,7 +4134,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         <div class="timeline-list">
           ${stepsNewestFirst.length === 0
             ? `<div class="timeline-empty">No history yet</div>`
-            // @td:stepsNewestFirst.map() callback_2
             : stepsNewestFirst.map((s) => {
                 const isActive = s.idx === playhead;
                 return `
@@ -4349,7 +4161,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
         <div class="bookmarks-list">
           ${(store.bookmarks ?? []).length === 0
             ? `<div class="bookmarks-empty">No bookmarks yet. Click the bookmark icon to save the current state.</div>`
-            // @td:map() callback_23
             : (store.bookmarks ?? []).map((b: Bookmark) => `
               <div class="bookmark-item" data-bookmark-id="${escapeHtml(b.id)}">
                 <span class="bookmark-icon">📌</span>
@@ -4472,17 +4283,8 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
           <button class="btn btn-primary" id="addFirst">+ Add First Row</button>
         </div>`
         : `
-        <div class="rows-header">
-          <span class="col-expand"></span>
-          <span class="col-id">ID</span>
-          <span class="col-name">Name</span>
-          <span class="col-args">Args</span>
-          <span class="col-expr">Expression</span>
-          <span class="col-actions">Lock</span>
-        </div>
         <div class="rows-grid">
           ${hasMultipleScopes
-            // @td:sortedScopes.map() callback_2
             ? sortedScopes.map(scope => `
               <div class="scope-group" data-scope="${escapeHtml(scope)}">
                 <div class="scope-header" data-toggle-scope="${escapeHtml(scope)}">
@@ -4501,7 +4303,7 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
       }
       </div>
 
-      <!-- DAG View - Radial layout with hub in center -->
+      <!-- DAG View -->
       <div class="view-content" id="dagView">
         <div class="dag-container">
           ${dagNodes.length === 0
@@ -4510,32 +4312,25 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
                 <div class="empty-title">No dependencies</div>
                 <div class="empty-desc">Add dependencies between rows to see the graph.</div>
               </div>`
-            : `<svg class="dag-svg" width="${dagWidth}" height="${dagHeight}" viewBox="${minX} ${minY} ${dagWidth} ${dagHeight}">
+            : `<svg class="dag-svg" width="${dagWidth}" height="${dagHeight}" viewBox="0 0 ${dagWidth} ${dagHeight}">
                 <defs>
-                  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                    <polygon points="0 0, 8 3, 0 6" fill="var(--td-accent)"/>
+                  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="var(--td-card-border)"/>
                   </marker>
                 </defs>
-                <!-- Connection lines -->
+                <!-- Edges -->
                 ${dagEdges.map(e => `
-                  <line class="dag-edge" data-from="${e.from}" data-to="${e.to}"
-                    x1="${e.fromX}" y1="${e.fromY}" x2="${e.toX}" y2="${e.toY}"
-                    marker-end="url(#arrowhead)" />
+                  <path class="dag-edge" data-from="${e.from}" data-to="${e.to}"
+                    d="M ${e.fromX} ${e.fromY} C ${e.fromX - 40} ${e.fromY}, ${e.toX + 40} ${e.toY}, ${e.toX} ${e.toY}" />
                 `).join('')}
-                <!-- Nodes as circles - hub is larger -->
-                ${dagNodes.map((n, i) => `
-                  <g class="dag-node ${n.hasCycle ? 'cycle' : ''} ${i === 0 ? 'hub' : ''}" data-node="${n.id}" transform="translate(${n.x + nodeRadius}, ${n.y + nodeRadius / 2})">
-                    <circle r="${i === 0 ? nodeRadius : nodeRadius * 0.65}" class="node-circle" />
-                    <text y="4" text-anchor="middle" class="node-label">${n.id.length > 8 ? n.id.slice(0, 6) + '..' : n.id}</text>
-                    ${n.connections > 0 ? `<text y="16" text-anchor="middle" class="node-count">${n.connections}</text>` : ''}
+                <!-- Nodes -->
+                ${dagNodes.map(n => `
+                  <g class="dag-node ${n.hasCycle ? 'cycle' : ''}" data-node="${n.id}" transform="translate(${n.x}, ${n.y})">
+                    <rect width="120" height="40" />
+                    <text x="60" y="24" text-anchor="middle">${n.id.length > 14 ? n.id.slice(0, 12) + '...' : n.id}</text>
                   </g>
                 `).join('')}
-              </svg>
-              <div class="dag-legend">
-                <span class="legend-item"><span class="legend-dot hub"></span> Hub (most connected)</span>
-                <span class="legend-item"><span class="legend-dot"></span> Node</span>
-                <span class="legend-item"><span class="legend-line"></span> Depends on</span>
-              </div>`
+              </svg>`
           }
         </div>
       </div>
@@ -5473,7 +5268,6 @@ class ConfigPanelProvider implements vscode.WebviewViewProvider {
   }
 }
 
-// @td:escapeHtml_2
 function escapeHtml(s: string): string {
   return (s || '')
     .replace(/&/g, '&amp;')
@@ -5483,7 +5277,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#039;');
 }
 
-// @td:activate_2
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const provider = new ConfigPanelProvider(context);
   context.subscriptions.push(
@@ -5497,12 +5290,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(configStatusBar);
 
   // Update status bar when config changes
-  // @td:updateStatusBar_2
   async function updateStatusBar(): Promise<void> {
     try {
       const store = await readStore();
       const rows = store.rows ?? [];
-      // @td:rows.filter() callback_8
       const lockedCount = rows.filter(r => r.locked).length;
       configStatusBar.text = `$(layers) TD: ${rows.length} rows${lockedCount > 0 ? ` (${lockedCount} locked)` : ''}`;
       configStatusBar.show();
@@ -5523,7 +5314,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.insertRowId') callback_2
     vscode.commands.registerCommand('topdown.insertRowId', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
@@ -5535,7 +5325,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const row = await pickRow(store);
       if (!row) return;
 
-      // @td:editor.edit() callback_9
       await editor.edit((b) => {
         const sel = editor.selection;
         if (!sel.isEmpty) b.replace(sel, row.id);
@@ -5545,14 +5334,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.duplicateRowVariant') callback_2
     vscode.commands.registerCommand('topdown.duplicateRowVariant', async () => {
       const store = await readStore();
       const source = await pickRow(store);
       if (!source) return;
 
       const rows = store.rows ?? [];
-      // @td:rows.map() callback_10
       const existingIds = new Set(rows.map((r) => (r.id || '').trim()).filter(Boolean));
       const newId = nextVariantId(source.id, existingIds);
 
@@ -5568,7 +5355,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         ts: Date.now(),
         kind: 'row.variant',
         label: `+ ${newId} (from ${source.id})`,
-        // @td:store.rows.map() callback_13
         rowsSnapshot: store.rows.map(r => ({ ...r })),
       });
       await writeStore(store);
@@ -5581,7 +5367,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.languages.registerCompletionItemProvider(
       { scheme: 'file' },
       {
-        // @td:provideCompletionItems_2
         provideCompletionItems: async (document, position) => {
           const prefix = getLinePrefix(document, position).toLowerCase();
           if (!prefix.endsWith('td:')) return undefined;
@@ -5589,12 +5374,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           const store = await readStore();
           const rows = store.rows ?? [];
           return rows
-            // @td:rows.filter() callback_7
             .filter((r) => isLikelyRowId(r.id))
             .slice()
-            // @td:sort() callback_12
             .sort((a, b) => a.id.localeCompare(b.id))
-            // @td:map() callback_22
             .map((r) => {
               const it = new vscode.CompletionItem(r.id, vscode.CompletionItemKind.Reference);
               it.insertText = r.id;
@@ -5615,14 +5397,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Hover row details when hovering an ID token.
   context.subscriptions.push(
     vscode.languages.registerHoverProvider({ scheme: 'file' }, {
-      // @td:provideHover_2
       provideHover: async (document, position) => {
         const range = document.getWordRangeAtPosition(position, /[A-Za-z_][A-Za-z0-9_.-]{1,64}/);
         if (!range) return undefined;
         const word = document.getText(range);
         if (!isLikelyRowId(word)) return undefined;
         const store = await readStore();
-        // @td:find() callback_4
         const row = (store.rows ?? []).find((r) => r.id === word);
         if (!row) return undefined;
 
@@ -5638,7 +5418,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.openConfigPanel') callback_2
     vscode.commands.registerCommand('topdown.openConfigPanel', async () => {
       await vscode.commands.executeCommand('workbench.view.extension.topdownPanel');
       await vscode.commands.executeCommand('topdown.configPanel.focus');
@@ -5647,7 +5426,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Pop-out panel command - creates a detachable WebviewPanel
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.popOutPanel') callback
     vscode.commands.registerCommand('topdown.popOutPanel', async () => {
       await provider.createPopOutPanel();
     })
@@ -5660,7 +5438,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Track td() usage locations across the workspace
   const tdUsageMap = new Map<string, Array<{ uri: vscode.Uri; line: number }>>();
 
-  // @td:scanForTdUsage_2
   async function scanForTdUsage(): Promise<void> {
     tdUsageMap.clear();
     const root = getWorkspaceRoot();
@@ -5712,7 +5489,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       for (const usage of usages) {
         const diagnostics = vscode.languages.getDiagnostics(usage.uri);
         const relevantDiags = diagnostics.filter(
-          // @td:diagnostics.filter() callback_2
           (d) => d.severity === vscode.DiagnosticSeverity.Error &&
                  Math.abs(d.range.start.line - usage.line) <= 2
         );
@@ -5739,7 +5515,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Initial scan on activation
-  // @td:setTimeout() callback_10
   setTimeout(async () => {
     await scanForTdUsage();
     await checkDiagnosticsForRows();
@@ -5748,10 +5523,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Re-scan when diagnostics change
   let diagnosticsDebounce: NodeJS.Timeout | undefined;
   context.subscriptions.push(
-    // @td:vscode.languages.onDidChangeDiagnostics() callback_2
     vscode.languages.onDidChangeDiagnostics(() => {
       if (diagnosticsDebounce) clearTimeout(diagnosticsDebounce);
-      // @td:setTimeout() callback_9
       diagnosticsDebounce = setTimeout(async () => {
         await checkDiagnosticsForRows();
       }, 1000);
@@ -5760,7 +5533,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Re-scan when files are saved
   context.subscriptions.push(
-    // @td:vscode.workspace.onDidSaveTextDocument() callback_2
     vscode.workspace.onDidSaveTextDocument(async (doc) => {
       // Only re-scan if it's a code file
       if (/\.(ts|tsx|js|jsx|py)$/.test(doc.fileName)) {
@@ -5771,14 +5543,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.timeline.clear') callback_2
     vscode.commands.registerCommand('topdown.timeline.clear', async () => {
       const store = await readStore();
       store.playheadIndex = (store.history?.length ?? 0) - 1;
       await writeStore(store);
       await provider.render();
     }),
-    // @td:vscode.commands.registerCommand('topdown.timeline.prev') callback_2
     vscode.commands.registerCommand('topdown.timeline.prev', async () => {
       const store = await readStore();
       const total = store.history?.length ?? 0;
@@ -5787,7 +5557,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await writeStore(store);
       await provider.render();
     }),
-    // @td:vscode.commands.registerCommand('topdown.timeline.next') callback_2
     vscode.commands.registerCommand('topdown.timeline.next', async () => {
       const store = await readStore();
       const total = store.history?.length ?? 0;
@@ -5796,7 +5565,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await writeStore(store);
       await provider.render();
     }),
-    // @td:vscode.commands.registerCommand('topdown.timeline.pick') callback_2
     vscode.commands.registerCommand('topdown.timeline.pick', async () => {
       const store = await readStore();
       const history = store.history ?? [];
@@ -5805,7 +5573,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       const picked = await vscode.window.showQuickPick(
-        // @td:history.map() callback_3
         history.map((h, idx) => ({ label: h.label, description: h.kind, idx })),
         { title: 'Top-Down: Jump to step' }
       );
@@ -5821,7 +5588,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // -----------------------------------------------------------------------------------------
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.promoteToConfigurable') callback_2
     vscode.commands.registerCommand('topdown.promoteToConfigurable', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
@@ -5844,9 +5610,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // Find the most specific symbol containing the cursor
         const cursorLine = selection.active.line;
         const matchingSymbols = flatSymbols
-          // @td:flatSymbols.filter() callback_2
           .filter(s => s.range.start.line <= cursorLine && s.range.end.line >= cursorLine)
-          // @td:sort() callback_11
           .sort((a, b) => {
             // Prefer more specific (smaller range) symbols
             const aSize = a.range.end.line - a.range.start.line;
@@ -5884,7 +5648,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
       // Make unique if already exists
       const store = await readStore();
-      // @td:map() callback_21
       const existingIds = new Set((store.rows ?? []).map(r => r.id));
       let finalId = id;
       if (existingIds.has(finalId)) {
@@ -5926,7 +5689,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         ts: Date.now(),
         kind: 'row.promote',
         label: `Promoted ${finalId} from ${relativePath}`,
-        // @td:store.rows.map() callback_12
         rowsSnapshot: store.rows.map(r => ({ ...r })),
       });
 
@@ -5940,19 +5702,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         const indent = lineText.match(/^[\t ]*/)?.[0] || '';
         const markerLine = `${indent}${marker.prefix}${finalId}${marker.suffix}\n`;
 
-        // @td:editor.edit() callback_8
         await editor.edit(editBuilder => {
           editBuilder.insert(new vscode.Position(symbolLine, 0), markerLine);
         });
       } else if (action.action === 'config-and-call') {
         // Insert td() call - wrap selected text or insert at cursor
         if (!selection.isEmpty) {
-          // @td:editor.edit() callback_7
           await editor.edit(editBuilder => {
             editBuilder.replace(selection, `td("${finalId}")`);
           });
         } else {
-          // @td:editor.edit() callback_6
           await editor.edit(editBuilder => {
             editBuilder.insert(selection.active, `td("${finalId}")`);
           });
@@ -5977,7 +5736,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(statusBarItem);
 
   // Create backup of files before modifying
-  // @td:createBackup_2
   async function createBackup(root: vscode.Uri, files: vscode.Uri[]): Promise<string | null> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
     const backupDir = vscode.Uri.joinPath(root, '.topdown', 'backups', timestamp);
@@ -6004,13 +5762,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Clean up old backups
-  // @td:cleanupOldBackups_2
   async function cleanupOldBackups(root: vscode.Uri, maxBackups: number): Promise<void> {
     const backupsDir = vscode.Uri.joinPath(root, '.topdown', 'backups');
     try {
       const entries = await vscode.workspace.fs.readDirectory(backupsDir);
-      // @td:entries.filter() callback_5
-      // @td:map() callback_20
       const dirs = entries.filter(([, type]) => type === vscode.FileType.Directory).map(([name]) => name).sort().reverse();
       for (let i = maxBackups; i < dirs.length; i++) {
         await vscode.workspace.fs.delete(vscode.Uri.joinPath(backupsDir, dirs[i]), { recursive: true });
@@ -6019,7 +5774,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Get marker style based on language
-  // @td:getMarkerForLanguage_2
   function getMarkerForLanguage(langId: string): { prefix: string; suffix: string } {
     const pyStyle = ['python', 'ruby', 'shellscript', 'bash', 'r', 'julia', 'perl', 'yaml', 'toml', 'dockerfile'];
     const cStyle = ['c', 'sql', 'css'];
@@ -6030,7 +5784,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Use VS Code's document symbols API (powered by language servers/linters)
-  // @td:getSymbolsFromDocument_2
   async function getSymbolsFromDocument(doc: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
     try {
       const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -6044,7 +5797,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Flatten nested symbols
-  // @td:flattenSymbols_2
   function flattenSymbols(symbols: vscode.DocumentSymbol[], depth = 0): Array<vscode.DocumentSymbol & { depth: number }> {
     const result: Array<vscode.DocumentSymbol & { depth: number }> = [];
     for (const sym of symbols) {
@@ -6057,7 +5809,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Check if a symbol should be tracked
-  // @td:shouldTrackSymbol_2
   function shouldTrackSymbol(sym: vscode.DocumentSymbol): boolean {
     const trackableKinds = [
       vscode.SymbolKind.Function,
@@ -6085,13 +5836,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Check if line already has a marker
-  // @td:lineHasMarker_2
   function lineHasMarker(text: string): boolean {
     return text.includes('@td:') || /\btd\s*\(/.test(text);
   }
 
   // Inject markers using document symbols from language server
-  // @td:injectMarkersIntoDocument_2
   async function injectMarkersIntoDocument(doc: vscode.TextDocument, existingIds: Set<string>): Promise<{ injected: string[]; edits: vscode.TextEdit[] }> {
     const symbols = await getSymbolsFromDocument(doc);
     const flatSymbols = flattenSymbols(symbols);
@@ -6102,7 +5851,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Process symbols from bottom to top to maintain line numbers
     const sortedSymbols = flatSymbols
       .filter(shouldTrackSymbol)
-      // @td:sort() callback_10
       .sort((a, b) => b.range.start.line - a.range.start.line);
     
     for (const sym of sortedSymbols) {
@@ -6139,7 +5887,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // Main ingest function
-  // @td:ingestWorkspace_2
   async function ingestWorkspace(showProgress = true): Promise<void> {
     const root = getWorkspaceRoot();
     if (!root) {
@@ -6181,7 +5928,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Get existing IDs
     const store = await readStore();
-    // @td:map() callback_19
     const existingIds = new Set((store.rows ?? []).map((r) => r.id));
     
     let totalInjected = 0;
@@ -6214,7 +5960,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Add new rows to the store
     if (allInjectedIds.length > 0) {
-      // @td:allInjectedIds.map() callback_2
       const newRows: ConfigRow[] = allInjectedIds.map(id => ({
         id,
         locked: false,
@@ -6228,7 +5973,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         ts: Date.now(),
         kind: 'auto.ingest',
         label: `Injected ${totalInjected} markers`,
-        // @td:store.rows.map() callback_11
         rowsSnapshot: store.rows.map(r => ({ ...r })),
       });
       await writeStore(store);
@@ -6247,7 +5991,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register ingest command
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.ingestWorkspace') callback_2
     vscode.commands.registerCommand('topdown.ingestWorkspace', async () => {
       const result = await vscode.window.showWarningMessage(
         'Top-Down: This will inject @td markers into your code at function/class definitions. A backup will be created first. Continue?',
@@ -6261,7 +6004,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register restore backup command
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.restoreBackup') callback_2
     vscode.commands.registerCommand('topdown.restoreBackup', async () => {
       const root = getWorkspaceRoot();
       if (!root) {
@@ -6273,8 +6015,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       
       try {
         const entries = await vscode.workspace.fs.readDirectory(backupsDir);
-        // @td:entries.filter() callback_4
-        // @td:map() callback_18
         const backups = entries.filter(([, type]) => type === vscode.FileType.Directory).map(([name]) => name).sort().reverse();
 
         if (backups.length === 0) {
@@ -6283,7 +6023,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
 
         const picked = await vscode.window.showQuickPick(
-          // @td:backups.map() callback_2
           backups.map(b => ({ label: b, description: 'Backup timestamp' })),
           { title: 'Top-Down: Select backup to restore' }
         );
@@ -6298,7 +6037,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         const backupDir = vscode.Uri.joinPath(backupsDir, picked.label);
         
-        // @td:restoreDir_2
         async function restoreDir(sourceDir: vscode.Uri, targetDir: vscode.Uri): Promise<number> {
           let restored = 0;
           const items = await vscode.workspace.fs.readDirectory(sourceDir);
@@ -6329,7 +6067,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Codegen: generate shippable defs (no runtime config read)
   // -----------------------------------------------------------------------------------------
 
-  // @td:generateShippableDefs_2
   async function generateShippableDefs(): Promise<void> {
     const root = getWorkspaceRoot();
     if (!root) {
@@ -6339,12 +6076,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     const store = await readStore();
     const rows = (store.rows ?? [])
-      // @td:filter() callback_4
       .filter((r) => r && typeof r.id === 'string' && isLikelyRowId(r.id))
       .slice()
-      // @td:sort() callback_9
       .sort((a, b) => a.id.localeCompare(b.id))
-      // @td:map() callback_17
       .map((r) => ({
         id: String(r.id),
         locked: !!r.locked,
@@ -6402,7 +6136,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.generateShippableDefs') callback_2
     vscode.commands.registerCommand('topdown.generateShippableDefs', async () => {
       await generateShippableDefs();
     })
@@ -6411,7 +6144,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const output = vscode.window.createOutputChannel('Top-Down');
   context.subscriptions.push(output);
 
-  // @td:log_2
   function log(msg: string): void {
     output.appendLine(`[${new Date().toISOString()}] ${msg}`);
   }
@@ -6420,7 +6152,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Automatic Initial Scan - Build config table on first workspace open
   // -----------------------------------------------------------------------------------------
 
-  // @td:autoInitializeWorkspace_2
   async function autoInitializeWorkspace(root: vscode.Uri): Promise<void> {
     const key = `topdown.initialized:${root.fsPath}`;
     const alreadyInitialized = context.workspaceState.get<boolean>(key, false);
@@ -6449,7 +6180,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         title: 'Top-Down: Initializing workspace...',
         cancellable: false,
       },
-      // @td:vscode.window.withProgress() callback_2
       async (progress) => {
         progress.report({ message: 'Discovering code symbols...', increment: 0 });
 
@@ -6527,7 +6257,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
         if (discoveredRows.length > 0) {
           // Sort rows by ID for consistent ordering
-          // @td:discoveredRows.sort() callback_2
           discoveredRows.sort((a, b) => a.id.localeCompare(b.id));
 
           // Create initial store with discovered rows
@@ -6593,7 +6322,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Also provide a command to re-scan and rebuild the config
   context.subscriptions.push(
-    // @td:vscode.commands.registerCommand('topdown.rescanWorkspace') callback_2
     vscode.commands.registerCommand('topdown.rescanWorkspace', async () => {
       const root = getWorkspaceRoot();
       if (!root) {
@@ -6619,7 +6347,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // Auto-initialize on startup (with delay to let language servers warm up)
-  // @td:setTimeout() callback_8
   setTimeout(async () => {
     const root = getWorkspaceRoot();
     if (!root) {
@@ -6632,12 +6359,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Also react when a folder is added (multi-root workspaces)
   context.subscriptions.push(
-    // @td:vscode.workspace.onDidChangeWorkspaceFolders() callback_2
     vscode.workspace.onDidChangeWorkspaceFolders(async (e) => {
       for (const f of e.added) {
         log(`Workspace folder added: ${f.uri.fsPath}`);
         // Small delay for language server to recognize new folder
-        // @td:setTimeout() callback_7
         setTimeout(() => autoInitializeWorkspace(f.uri), 1500);
       }
     })
@@ -6652,7 +6377,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const changedRowIds = new Set<string>();
   let fileWatchDebounce: NodeJS.Timeout | undefined;
 
-  // @td:rebuildFileMapping_2
   async function rebuildFileMapping(): Promise<void> {
     fileToRowsMap.clear();
     const store = await readStore();
@@ -6678,7 +6402,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log(`File mapping rebuilt: ${fileToRowsMap.size} files tracked`);
   }
 
-  // @td:findAffectedRows_2
   function findAffectedRows(changedFile: string): string[] {
     const directlyAffected = fileToRowsMap.get(changedFile) ?? new Set();
     if (directlyAffected.size === 0) return [];
@@ -6688,7 +6411,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     return Array.from(allAffected);
   }
 
-  // @td:handleFileChange_2
   async function handleFileChange(uri: vscode.Uri): Promise<void> {
     const affectedRows = findAffectedRows(uri.fsPath);
     if (affectedRows.length === 0) return;
@@ -6699,7 +6421,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     // Debounce to batch rapid changes
     if (fileWatchDebounce) clearTimeout(fileWatchDebounce);
-    // @td:setTimeout() callback_6
     fileWatchDebounce = setTimeout(async () => {
       if (changedRowIds.size > 0) {
         log(`Source files changed, affected rows: ${Array.from(changedRowIds).join(', ')}`);
@@ -6715,12 +6436,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     sourceWatcher,
     sourceWatcher.onDidChange(handleFileChange),
-    // @td:sourceWatcher.onDidCreate() callback_2
     sourceWatcher.onDidCreate(async (uri) => {
       await rebuildFileMapping();
       await handleFileChange(uri);
     }),
-    // @td:sourceWatcher.onDidDelete() callback_2
     sourceWatcher.onDidDelete(async () => {
       await rebuildFileMapping();
     })
@@ -6730,7 +6449,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   setTimeout(rebuildFileMapping, 3000);
 }
 
-// @td:deactivate_2
 export function deactivate(): void {
   // no-op
 }

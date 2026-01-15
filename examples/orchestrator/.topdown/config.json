@@ -1,0 +1,747 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "id": "workspace-root",
+      "locked": false,
+      "name": "Workspace root path",
+      "args": "",
+      "expr": "..",
+      "scope": "config",
+      "depends": []
+    },
+    {
+      "id": "project-taskrunner",
+      "locked": false,
+      "name": "Task Runner project",
+      "args": "--path taskrunner --type python",
+      "expr": "taskrunner",
+      "scope": "project",
+      "depends": ["workspace-root"]
+    },
+    {
+      "id": "project-datapipeline",
+      "locked": false,
+      "name": "Data Pipeline project",
+      "args": "--path datapipeline --type python",
+      "expr": "datapipeline",
+      "scope": "project",
+      "depends": ["workspace-root"]
+    },
+    {
+      "id": "project-buildsystem",
+      "locked": false,
+      "name": "Build System project",
+      "args": "--path buildsystem --type python",
+      "expr": "buildsystem",
+      "scope": "project",
+      "depends": ["workspace-root"]
+    },
+    {
+      "id": "env-local",
+      "locked": false,
+      "name": "Local environment",
+      "args": "--host localhost --port-range 8000-9000",
+      "expr": "local",
+      "scope": "environment",
+      "depends": []
+    },
+    {
+      "id": "env-dev",
+      "locked": false,
+      "name": "Development environment",
+      "args": "--host dev.internal --vpc vpc-dev-001",
+      "expr": "development",
+      "scope": "environment",
+      "depends": []
+    },
+    {
+      "id": "env-staging",
+      "locked": false,
+      "name": "Staging environment",
+      "args": "--host staging.internal --vpc vpc-staging-001 --replicas 2",
+      "expr": "staging",
+      "scope": "environment",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "env-production",
+      "locked": true,
+      "name": "Production environment",
+      "args": "--host prod.example.com --vpc vpc-prod-001 --replicas 5 --multi-az",
+      "expr": "production",
+      "scope": "environment",
+      "depends": ["env-staging"]
+    },
+    {
+      "id": "secret-db-local",
+      "locked": false,
+      "name": "Local DB credentials",
+      "args": "--vault local --key db/local",
+      "expr": "",
+      "scope": "secret",
+      "depends": ["env-local"]
+    },
+    {
+      "id": "secret-db-dev",
+      "locked": false,
+      "name": "Dev DB credentials",
+      "args": "--vault aws-secrets --key db/dev",
+      "expr": "",
+      "scope": "secret",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "secret-db-staging",
+      "locked": true,
+      "name": "Staging DB credentials",
+      "args": "--vault aws-secrets --key db/staging --rotation 30d",
+      "expr": "",
+      "scope": "secret",
+      "depends": ["env-staging"]
+    },
+    {
+      "id": "secret-db-prod",
+      "locked": true,
+      "name": "Production DB credentials",
+      "args": "--vault aws-secrets --key db/prod --rotation 7d --audit",
+      "expr": "",
+      "scope": "secret",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "secret-api-keys",
+      "locked": true,
+      "name": "External API keys",
+      "args": "--vault aws-secrets --key api/external",
+      "expr": "",
+      "scope": "secret",
+      "depends": []
+    },
+    {
+      "id": "secret-signing-key",
+      "locked": true,
+      "name": "Code signing key",
+      "args": "--vault hsm --key signing/release",
+      "expr": "",
+      "scope": "secret",
+      "depends": []
+    },
+    {
+      "id": "gate-code-review",
+      "locked": false,
+      "name": "Code review approval",
+      "args": "--approvers 2 --teams backend,security",
+      "expr": "",
+      "scope": "gate",
+      "depends": []
+    },
+    {
+      "id": "gate-security-scan",
+      "locked": false,
+      "name": "Security scan gate",
+      "args": "--scanner snyk,trivy --severity high,critical --block",
+      "expr": "",
+      "scope": "gate",
+      "depends": []
+    },
+    {
+      "id": "gate-performance",
+      "locked": false,
+      "name": "Performance gate",
+      "args": "--baseline main --regression-threshold 5%",
+      "expr": "",
+      "scope": "gate",
+      "depends": []
+    },
+    {
+      "id": "gate-staging-approval",
+      "locked": true,
+      "name": "Staging deployment approval",
+      "args": "--approvers 1 --teams ops,backend",
+      "expr": "",
+      "scope": "gate",
+      "depends": ["gate-code-review", "gate-security-scan"]
+    },
+    {
+      "id": "gate-prod-approval",
+      "locked": true,
+      "name": "Production deployment approval",
+      "args": "--approvers 2 --teams ops,security,backend --require-ticket",
+      "expr": "",
+      "scope": "gate",
+      "depends": ["gate-staging-approval", "gate-performance"]
+    },
+    {
+      "id": "notify-slack-dev",
+      "locked": false,
+      "name": "Slack dev channel",
+      "args": "--channel #dev-builds --mention @oncall-dev",
+      "expr": "",
+      "scope": "notification",
+      "depends": []
+    },
+    {
+      "id": "notify-slack-ops",
+      "locked": false,
+      "name": "Slack ops channel",
+      "args": "--channel #ops-alerts --mention @oncall-ops",
+      "expr": "",
+      "scope": "notification",
+      "depends": []
+    },
+    {
+      "id": "notify-pagerduty",
+      "locked": true,
+      "name": "PagerDuty alerts",
+      "args": "--service prod-deployments --severity critical",
+      "expr": "",
+      "scope": "notification",
+      "depends": []
+    },
+    {
+      "id": "notify-email-stakeholders",
+      "locked": false,
+      "name": "Email stakeholders",
+      "args": "--group release-stakeholders --template release-summary",
+      "expr": "",
+      "scope": "notification",
+      "depends": []
+    },
+    {
+      "id": "schedule-nightly",
+      "locked": false,
+      "name": "Nightly schedule",
+      "args": "--cron '0 2 * * *' --timezone UTC",
+      "expr": "nightly",
+      "scope": "schedule",
+      "depends": []
+    },
+    {
+      "id": "schedule-weekly",
+      "locked": false,
+      "name": "Weekly schedule",
+      "args": "--cron '0 4 * * 0' --timezone UTC",
+      "expr": "weekly",
+      "scope": "schedule",
+      "depends": []
+    },
+    {
+      "id": "schedule-release",
+      "locked": true,
+      "name": "Release schedule",
+      "args": "--cron '0 10 * * 2' --timezone America/New_York --skip-holidays",
+      "expr": "tuesday-release",
+      "scope": "schedule",
+      "depends": []
+    },
+    {
+      "id": "wf-validate-all",
+      "locked": false,
+      "name": "Validate all projects",
+      "args": "--parallel --fail-fast",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["project-taskrunner", "project-datapipeline", "project-buildsystem"]
+    },
+    {
+      "id": "wf-build-taskrunner",
+      "locked": false,
+      "name": "Build task runner",
+      "args": "--target deploy-task --dry-run false",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["project-taskrunner", "wf-validate-all"]
+    },
+    {
+      "id": "wf-build-pipeline",
+      "locked": false,
+      "name": "Build data pipeline",
+      "args": "--env dev --target load-warehouse",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["project-datapipeline", "wf-validate-all"]
+    },
+    {
+      "id": "wf-build-system",
+      "locked": false,
+      "name": "Build system artifacts",
+      "args": "--profile dev --target bin-server,bin-client",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["project-buildsystem", "wf-validate-all"]
+    },
+    {
+      "id": "wf-test-unit",
+      "locked": false,
+      "name": "Run unit tests",
+      "args": "--coverage --parallel 4",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-build-taskrunner", "wf-build-pipeline", "wf-build-system"]
+    },
+    {
+      "id": "wf-test-integration",
+      "locked": false,
+      "name": "Run integration tests",
+      "args": "--env dev --timeout 300",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-test-unit", "env-dev", "secret-db-dev"]
+    },
+    {
+      "id": "wf-security-scan",
+      "locked": false,
+      "name": "Security scanning",
+      "args": "--tools snyk,trivy,semgrep --report json",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-build-system", "gate-security-scan"]
+    },
+    {
+      "id": "wf-performance-test",
+      "locked": false,
+      "name": "Performance testing",
+      "args": "--duration 10m --rps 1000 --baseline main",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-test-integration", "gate-performance"]
+    },
+    {
+      "id": "wf-package-artifacts",
+      "locked": false,
+      "name": "Package all artifacts",
+      "args": "--format tar.gz,deb,rpm --sign",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-test-integration", "wf-security-scan", "secret-signing-key"]
+    },
+    {
+      "id": "wf-deploy-dev",
+      "locked": false,
+      "name": "Deploy to dev",
+      "args": "--env dev --strategy rolling",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-package-artifacts", "env-dev", "secret-db-dev"]
+    },
+    {
+      "id": "wf-deploy-staging",
+      "locked": false,
+      "name": "Deploy to staging",
+      "args": "--env staging --strategy blue-green --canary 10%",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-deploy-dev", "wf-performance-test", "env-staging", "secret-db-staging", "gate-staging-approval", "notify-slack-ops"]
+    },
+    {
+      "id": "wf-test-e2e",
+      "locked": false,
+      "name": "E2E tests on staging",
+      "args": "--env staging --suite smoke,critical --timeout 600",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-deploy-staging"]
+    },
+    {
+      "id": "wf-deploy-prod",
+      "locked": true,
+      "name": "Deploy to production",
+      "args": "--env production --strategy canary --canary-steps 10,25,50,100 --rollback-on-error",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-test-e2e", "env-production", "secret-db-prod", "gate-prod-approval", "notify-pagerduty"]
+    },
+    {
+      "id": "wf-post-deploy-verify",
+      "locked": false,
+      "name": "Post-deploy verification",
+      "args": "--health-checks /health,/ready --timeout 120",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-deploy-prod"]
+    },
+    {
+      "id": "wf-notify-release",
+      "locked": false,
+      "name": "Send release notifications",
+      "args": "--template release-complete --include-changelog",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-post-deploy-verify", "notify-email-stakeholders", "notify-slack-ops"]
+    },
+    {
+      "id": "wf-cleanup",
+      "locked": false,
+      "name": "Cleanup old artifacts",
+      "args": "--keep-last 5 --older-than 30d",
+      "expr": "",
+      "scope": "workflow",
+      "depends": ["wf-notify-release"]
+    },
+    {
+      "id": "pipeline-ci",
+      "locked": false,
+      "name": "CI Pipeline",
+      "args": "--trigger push,pull_request --branches main,develop",
+      "expr": "",
+      "scope": "pipeline",
+      "depends": ["wf-validate-all", "wf-test-unit", "wf-security-scan", "notify-slack-dev"]
+    },
+    {
+      "id": "pipeline-nightly",
+      "locked": false,
+      "name": "Nightly Pipeline",
+      "args": "--full-suite --report",
+      "expr": "",
+      "scope": "pipeline",
+      "depends": ["schedule-nightly", "wf-test-integration", "wf-performance-test", "notify-slack-dev"]
+    },
+    {
+      "id": "pipeline-release",
+      "locked": true,
+      "name": "Release Pipeline",
+      "args": "--version-bump minor --changelog --tag",
+      "expr": "",
+      "scope": "pipeline",
+      "depends": ["schedule-release", "wf-deploy-prod", "wf-notify-release", "wf-cleanup"]
+    },
+    {
+      "id": "pipeline-hotfix",
+      "locked": true,
+      "name": "Hotfix Pipeline",
+      "args": "--skip-staging --expedited --notify-critical",
+      "expr": "",
+      "scope": "pipeline",
+      "depends": ["gate-prod-approval", "wf-test-unit", "wf-deploy-prod", "notify-pagerduty"]
+    },
+    {
+      "id": "pipeline-rollback",
+      "locked": true,
+      "name": "Rollback Pipeline",
+      "args": "--target previous --verify --notify",
+      "expr": "",
+      "scope": "pipeline",
+      "depends": ["env-production", "secret-db-prod", "notify-pagerduty"]
+    },
+    {
+      "id": "resource-k8s-dev",
+      "locked": false,
+      "name": "K8s dev cluster",
+      "args": "--context dev-cluster --namespace topdown-dev",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "resource-k8s-staging",
+      "locked": false,
+      "name": "K8s staging cluster",
+      "args": "--context staging-cluster --namespace topdown-staging",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-staging"]
+    },
+    {
+      "id": "resource-k8s-prod",
+      "locked": true,
+      "name": "K8s production cluster",
+      "args": "--context prod-cluster --namespace topdown-prod --read-only",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "resource-db-dev",
+      "locked": false,
+      "name": "Dev database",
+      "args": "--type postgres --host dev-db.internal --port 5432",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-dev", "secret-db-dev"]
+    },
+    {
+      "id": "resource-db-staging",
+      "locked": false,
+      "name": "Staging database",
+      "args": "--type postgres --host staging-db.internal --port 5432 --ssl",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-staging", "secret-db-staging"]
+    },
+    {
+      "id": "resource-db-prod",
+      "locked": true,
+      "name": "Production database",
+      "args": "--type postgres --host prod-db.example.com --port 5432 --ssl --replicas 3",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-production", "secret-db-prod"]
+    },
+    {
+      "id": "resource-cache-dev",
+      "locked": false,
+      "name": "Dev Redis cache",
+      "args": "--host dev-redis.internal --port 6379",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "resource-cache-prod",
+      "locked": true,
+      "name": "Production Redis cluster",
+      "args": "--host prod-redis.example.com --port 6379 --cluster --tls",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "resource-queue-dev",
+      "locked": false,
+      "name": "Dev message queue",
+      "args": "--type rabbitmq --host dev-mq.internal",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "resource-queue-prod",
+      "locked": true,
+      "name": "Production message queue",
+      "args": "--type rabbitmq --host prod-mq.example.com --ha --durable",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "resource-storage-dev",
+      "locked": false,
+      "name": "Dev S3 bucket",
+      "args": "--bucket topdown-dev-artifacts --region us-east-1",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-dev"]
+    },
+    {
+      "id": "resource-storage-prod",
+      "locked": true,
+      "name": "Production S3 bucket",
+      "args": "--bucket topdown-prod-artifacts --region us-east-1 --versioning --encryption",
+      "expr": "",
+      "scope": "resource",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "metric-build-time",
+      "locked": false,
+      "name": "Build time metric",
+      "args": "--type histogram --buckets 60,120,300,600",
+      "expr": "build_duration_seconds",
+      "scope": "metric",
+      "depends": []
+    },
+    {
+      "id": "metric-test-coverage",
+      "locked": false,
+      "name": "Test coverage metric",
+      "args": "--type gauge --threshold 80",
+      "expr": "test_coverage_percent",
+      "scope": "metric",
+      "depends": []
+    },
+    {
+      "id": "metric-deploy-frequency",
+      "locked": false,
+      "name": "Deploy frequency metric",
+      "args": "--type counter --labels env,status",
+      "expr": "deployments_total",
+      "scope": "metric",
+      "depends": []
+    },
+    {
+      "id": "metric-mttr",
+      "locked": false,
+      "name": "Mean time to recovery",
+      "args": "--type histogram --buckets 300,600,1800,3600",
+      "expr": "mttr_seconds",
+      "scope": "metric",
+      "depends": []
+    },
+    {
+      "id": "metric-change-failure",
+      "locked": false,
+      "name": "Change failure rate",
+      "args": "--type gauge --alert-threshold 15",
+      "expr": "change_failure_rate_percent",
+      "scope": "metric",
+      "depends": []
+    },
+    {
+      "id": "alert-build-failed",
+      "locked": false,
+      "name": "Build failure alert",
+      "args": "--severity warning --cooldown 5m",
+      "expr": "build_status == 'failed'",
+      "scope": "alert",
+      "depends": ["metric-build-time", "notify-slack-dev"]
+    },
+    {
+      "id": "alert-coverage-drop",
+      "locked": false,
+      "name": "Coverage drop alert",
+      "args": "--severity warning --threshold 5",
+      "expr": "test_coverage_percent < 80",
+      "scope": "alert",
+      "depends": ["metric-test-coverage", "notify-slack-dev"]
+    },
+    {
+      "id": "alert-deploy-failed",
+      "locked": false,
+      "name": "Deploy failure alert",
+      "args": "--severity critical --escalate 15m",
+      "expr": "deploy_status == 'failed'",
+      "scope": "alert",
+      "depends": ["metric-deploy-frequency", "notify-slack-ops", "notify-pagerduty"]
+    },
+    {
+      "id": "alert-high-mttr",
+      "locked": false,
+      "name": "High MTTR alert",
+      "args": "--severity warning --threshold 1800",
+      "expr": "mttr_seconds > 1800",
+      "scope": "alert",
+      "depends": ["metric-mttr", "notify-slack-ops"]
+    },
+    {
+      "id": "alert-failure-rate",
+      "locked": false,
+      "name": "High failure rate alert",
+      "args": "--severity critical --threshold 15",
+      "expr": "change_failure_rate_percent > 15",
+      "scope": "alert",
+      "depends": ["metric-change-failure", "notify-pagerduty"]
+    },
+    {
+      "id": "policy-branch-protection",
+      "locked": true,
+      "name": "Branch protection policy",
+      "args": "--branches main,release/* --require-reviews 2 --require-ci",
+      "expr": "",
+      "scope": "policy",
+      "depends": ["gate-code-review"]
+    },
+    {
+      "id": "policy-secret-rotation",
+      "locked": true,
+      "name": "Secret rotation policy",
+      "args": "--max-age 90d --audit-log",
+      "expr": "",
+      "scope": "policy",
+      "depends": ["secret-db-prod", "secret-api-keys", "secret-signing-key"]
+    },
+    {
+      "id": "policy-deployment-window",
+      "locked": true,
+      "name": "Deployment window policy",
+      "args": "--allowed-days mon,tue,wed,thu --hours 9-17 --timezone America/New_York",
+      "expr": "",
+      "scope": "policy",
+      "depends": ["env-production"]
+    },
+    {
+      "id": "policy-rollback-threshold",
+      "locked": true,
+      "name": "Auto-rollback policy",
+      "args": "--error-rate 5% --latency-p99 500ms --window 5m",
+      "expr": "",
+      "scope": "policy",
+      "depends": ["wf-deploy-prod", "pipeline-rollback"]
+    },
+    {
+      "id": "policy-resource-limits",
+      "locked": true,
+      "name": "Resource limits policy",
+      "args": "--cpu-limit 4 --memory-limit 8Gi --storage-limit 100Gi",
+      "expr": "",
+      "scope": "policy",
+      "depends": ["resource-k8s-prod"]
+    },
+    {
+      "id": "audit-deployments",
+      "locked": true,
+      "name": "Deployment audit log",
+      "args": "--retention 365d --immutable --sign",
+      "expr": "",
+      "scope": "audit",
+      "depends": ["wf-deploy-prod", "secret-signing-key"]
+    },
+    {
+      "id": "audit-secret-access",
+      "locked": true,
+      "name": "Secret access audit",
+      "args": "--retention 365d --alert-anomaly",
+      "expr": "",
+      "scope": "audit",
+      "depends": ["secret-db-prod", "secret-api-keys"]
+    },
+    {
+      "id": "audit-config-changes",
+      "locked": true,
+      "name": "Config change audit",
+      "args": "--retention 365d --diff --notify",
+      "expr": "",
+      "scope": "audit",
+      "depends": ["project-taskrunner", "project-datapipeline", "project-buildsystem"]
+    },
+    {
+      "id": "backup-config-daily",
+      "locked": false,
+      "name": "Daily config backup",
+      "args": "--destination s3://backups/config --compress",
+      "expr": "",
+      "scope": "backup",
+      "depends": ["schedule-nightly", "resource-storage-prod"]
+    },
+    {
+      "id": "backup-db-hourly",
+      "locked": true,
+      "name": "Hourly DB backup",
+      "args": "--type incremental --retention 7d",
+      "expr": "",
+      "scope": "backup",
+      "depends": ["resource-db-prod"]
+    },
+    {
+      "id": "backup-db-daily",
+      "locked": true,
+      "name": "Daily DB backup",
+      "args": "--type full --retention 30d --offsite",
+      "expr": "",
+      "scope": "backup",
+      "depends": ["schedule-nightly", "resource-db-prod", "resource-storage-prod"]
+    },
+    {
+      "id": "dr-failover-plan",
+      "locked": true,
+      "name": "Disaster recovery failover",
+      "args": "--target us-west-2 --rto 4h --rpo 1h",
+      "expr": "",
+      "scope": "disaster-recovery",
+      "depends": ["backup-db-daily", "resource-k8s-prod", "policy-rollback-threshold"]
+    },
+    {
+      "id": "dr-restore-test",
+      "locked": true,
+      "name": "DR restore test",
+      "args": "--frequency monthly --verify-data --report",
+      "expr": "",
+      "scope": "disaster-recovery",
+      "depends": ["schedule-weekly", "dr-failover-plan", "backup-db-daily"]
+    }
+  ],
+  "history": [
+    {"ts": 1705276800000, "kind": "init.empty", "label": "Initial config"}
+  ],
+  "playheadIndex": 0
+}

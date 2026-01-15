@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "id": "task-timeout",
+      "locked": false,
+      "name": "Default task timeout",
+      "args": "--seconds 30",
+      "expr": "30",
+      "depends": []
+    },
+    {
+      "id": "max-retries",
+      "locked": false,
+      "name": "Retry count on failure",
+      "args": "",
+      "expr": "3",
+      "depends": []
+    },
+    {
+      "id": "parallel-workers",
+      "locked": false,
+      "name": "Concurrent task limit",
+      "args": "",
+      "expr": "4",
+      "depends": []
+    },
+    {
+      "id": "build-task",
+      "locked": false,
+      "name": "Build the project",
+      "args": "--output ./dist",
+      "expr": "",
+      "depends": ["task-timeout"]
+    },
+    {
+      "id": "test-task",
+      "locked": false,
+      "name": "Run tests",
+      "args": "--coverage --verbose",
+      "expr": "",
+      "depends": ["build-task", "max-retries"]
+    },
+    {
+      "id": "deploy-task",
+      "locked": true,
+      "name": "Deploy to production",
+      "args": "--env production --confirm",
+      "expr": "",
+      "depends": ["test-task"]
+    }
+  ],
+  "history": [
+    {"ts": 1705276800000, "kind": "init.empty", "label": "Initial config"}
+  ],
+  "playheadIndex": 0
+}

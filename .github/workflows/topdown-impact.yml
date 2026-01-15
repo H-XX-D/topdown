@@ -1,0 +1,85 @@
+name: Top-Down Impact Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  impact-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate diff
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Impact Analysis
+        id: impact
+        run: |
+          # Run the CI tool
+          python python/topdown_ci.py \
+            --git-diff ${{ github.event.pull_request.base.sha }} \
+            --head-ref ${{ github.event.pull_request.head.sha }} \
+            --format github \
+            --output impact-report.md
+
+          # Check if report was generated
+          if [ -f impact-report.md ]; then
+            echo "report_generated=true" >> $GITHUB_OUTPUT
+            # Store for comment
+            echo "REPORT<<EOF" >> $GITHUB_ENV
+            cat impact-report.md >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "report_generated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        if: steps.impact.outputs.report_generated == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = process.env.REPORT;
+            if (!report) {
+              console.log('No report to post');
+              return;
+            }
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes('Top-Down Impact Analysis')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }

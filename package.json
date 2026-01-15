@@ -1,9 +1,10 @@
 {
   "name": "topdown",
   "displayName": "Top-Down",
-  "description": "Developer-facing language augmentation with a Fusion-style intent timeline + config table.",
-  "version": "0.0.1",
+  "description": "Parametric code configuration with a Fusion 360-style timeline. Track dependencies, preview changes, restore any state.",
+  "version": "0.1.0",
   "publisher": "h-xx-d",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/H-XX-D/topdown.git"
@@ -12,6 +13,8 @@
     "vscode": "^1.85.0"
   },
   "categories": [
+    "Programming Languages",
+    "Visualization",
     "Other"
   ],
   "activationEvents": [
@@ -23,7 +26,11 @@
     "onCommand:topdown.timeline.prev",
     "onCommand:topdown.timeline.next",
     "onCommand:topdown.timeline.pick",
-    "onCommand:topdown.timeline.clear"
+    "onCommand:topdown.timeline.clear",
+    "onCommand:topdown.ingestWorkspace",
+    "onCommand:topdown.restoreBackup",
+    "onCommand:topdown.generateShippableDefs",
+    "onCommand:topdown.rescanWorkspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -31,6 +38,11 @@
       {
         "command": "topdown.openConfigPanel",
         "title": "Top-Down: Open Config Table"
+      },
+      {
+        "command": "topdown.popOutPanel",
+        "title": "Top-Down: Pop Out (Detachable Window)",
+        "icon": "$(link-external)"
       },
       {
         "command": "topdown.insertRowId",
@@ -55,13 +67,101 @@
       {
         "command": "topdown.timeline.clear",
         "title": "Top-Down: Clear Playhead"
+      },
+      {
+        "command": "topdown.ingestWorkspace",
+        "title": "Top-Down: Ingest Workspace (Scan & Add Markers)",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "topdown.restoreBackup",
+        "title": "Top-Down: Restore From Backup",
+        "icon": "$(history)"
+      },
+      {
+        "command": "topdown.generateShippableDefs",
+        "title": "Top-Down: Generate Shippable Defs (.topdown/generated)",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "topdown.rescanWorkspace",
+        "title": "Top-Down: Re-scan Workspace (Discover New Symbols)",
+        "icon": "$(search)"
+      },
+      {
+        "command": "topdown.promoteToConfigurable",
+        "title": "Top-Down: Promote to Configurable",
+        "icon": "$(star-add)"
       }
     ],
+    "keybindings": [
+      {
+        "command": "topdown.promoteToConfigurable",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "topdown.insertRowId",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "topdown.openConfigPanel",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d"
+      },
+      {
+        "command": "topdown.timeline.prev",
+        "key": "ctrl+shift+[",
+        "mac": "cmd+shift+[",
+        "when": "view.topdown.configPanel.visible"
+      },
+      {
+        "command": "topdown.timeline.next",
+        "key": "ctrl+shift+]",
+        "mac": "cmd+shift+]",
+        "when": "view.topdown.configPanel.visible"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "topdown.promoteToConfigurable",
+          "group": "topdown@1",
+          "when": "editorTextFocus"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "topdown.popOutPanel",
+          "when": "view == topdown.configPanel",
+          "group": "navigation@0"
+        },
+        {
+          "command": "topdown.ingestWorkspace",
+          "when": "view == topdown.configPanel",
+          "group": "navigation@1"
+        },
+        {
+          "command": "topdown.restoreBackup",
+          "when": "view == topdown.configPanel",
+          "group": "navigation@2"
+        },
+        {
+          "command": "topdown.generateShippableDefs",
+          "when": "view == topdown.configPanel",
+          "group": "navigation@3"
+        }
+      ]
+    },
     "viewsContainers": {
       "panel": [
         {
           "id": "topdownPanel",
-          "title": "Top-Down"
+          "title": "Top-Down",
+          "icon": "media/icon.svg"
         }
       ]
     },
@@ -69,9 +169,53 @@
       "topdownPanel": [
         {
           "id": "topdown.configPanel",
-          "name": "Config"
+          "name": "Config",
+          "type": "webview"
         }
       ]
+    },
+    "configuration": {
+      "title": "Top-Down",
+      "properties": {
+        "topdown.autoScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan workspace for symbols on first open"
+        },
+        "topdown.validateOnChange": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time speculative validation as you type"
+        },
+        "topdown.maxHistoryEntries": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum number of history entries to keep in timeline"
+        },
+        "topdown.showDependencyChips": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show dependency chips on row cards"
+        },
+        "topdown.defaultView": {
+          "type": "string",
+          "default": "table",
+          "enum": ["table", "dag"],
+          "enumDescriptions": [
+            "Table view with editable cards",
+            "DAG view with dependency graph"
+          ],
+          "description": "Default view when opening the panel"
+        },
+        "topdown.filePatterns": {
+          "type": "array",
+          "default": ["**/*.py", "**/*.ts", "**/*.js", "**/*.tsx", "**/*.jsx"],
+          "items": { "type": "string" },
+          "description": "File patterns to scan for symbols"
+        }
+      }
     }
   },
   "scripts": {
