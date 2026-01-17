@@ -1,0 +1,19 @@
+# Development & optional training dependencies
+numpy
+matplotlib
+pandas
+datasketch
+paho-mqtt
+Flask
+requests
+wandb
+transformers
+accelerate
+peft
+pytest
+
+# For PyTorch, prefer installing via OS-specific instructions; uncomment below for CPU-only install
+# torch
+# torchvision
+# torchaudio
+# pip install "torch" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
