@@ -61,7 +61,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Publish artifacts to branch
+      - name: Publish artifacts to branch (generate HTML)
         env:
           BRANCH: artifacts/data-qc
         run: |
@@ -75,14 +75,15 @@ jobs:
           fi
 
           mkdir -p experiments/plots
-          cp results/sample_base_balance_ci_positions.csv experiments/plots/ || true
-          cp results/sample_base_balance_ci_per_position.png experiments/plots/ || true
 
-          git add experiments/plots/sample_base_balance_ci_positions.csv experiments/plots/sample_base_balance_ci_per_position.png || true
+          # Use the publish helper to copy artifacts and generate HTML report
+          python3 scripts/bio/publish_qc_artifacts.py --results-dir results --dest-dir experiments/plots --prefix sample_base_balance_ci --html || true
+
+          git add experiments/plots/sample_base_balance_ci_positions.csv experiments/plots/sample_base_balance_ci_per_position.png experiments/plots/sample_base_balance_ci_report.html || true
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: publish data-qc artifacts" || true
+            git commit -m "chore: publish data-qc artifacts (CSV/PNG/HTML)" || true
             git push origin HEAD:$BRANCH
           fi

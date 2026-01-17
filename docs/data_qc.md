@@ -30,3 +30,7 @@ After running the script the plot will be available at `experiments/plots/sample
 Automated publishing
 
 The workflow also publishes generated artifacts into the `artifacts/data-qc` branch when changes are detected. This is handled by the CI job `publish-artifacts` in `.github/workflows/plot_data_qc.yml` and ensures that generated plots are available in the repository for documentation and review.
+
+HTML report
+
+The CI job now also generates a minimal HTML report (`<prefix>_report.html`) that embeds the per-position PNG and links the CSV; the HTML is published to `artifacts/data-qc` alongside the CSV and PNG for easy review.
