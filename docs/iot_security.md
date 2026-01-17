@@ -56,11 +56,16 @@ This document defines a minimal threat model, security goals, recommended authen
 
 ## Developer notes & examples
 - See `configs/iot/secure_example.yaml` for example configuration and `scripts/iot/collector.py` for how to enable TLS and token validation.
-- Tests: `tests/integration/test_iot_security_config.py` should be created to validate TLS and token behavior in CI (use test certificates and a local MQTT broker supporting TLS).
+- For local testing, use the helper scripts:
+  - `scripts/dev/generate_dev_certs.sh` — creates a dev CA and server cert/key (idempotent)
+  - `scripts/dev/run_local_mqtt_tls_test.sh` — spins up a TLS-enabled Mosquitto container, runs the collector locally, publishes a TLS-protected message, and shows ingestion results.
+
+- CI: `.github/workflows/iot_tls_integration.yml` runs the same flow in CI and verifies ingestion.
 
 ## Next steps
 1. Add example secure config templates (included in `configs/iot/`).
-2. Add `--require-auth` / `--tls-cert` flags to `scripts/iot/collector.py` and unit tests. 
-3. Add integration tests that run a TLS-enabled broker and the collector in Docker and verify authenticated ingestion.
-4. Add monitoring metrics and alert docs.
+2. Add `--require-auth` / `--tls-cert` flags to `scripts/iot/collector.py` and unit tests (done).
+3. Add integration tests that run a TLS-enabled broker and the collector in Docker and verify authenticated ingestion (done).
+4. Add tests for mTLS/client certs and username/password combos (planned).
+5. Add monitoring metrics and alert docs.
 
