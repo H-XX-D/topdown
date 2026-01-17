@@ -66,6 +66,6 @@ This document defines a minimal threat model, security goals, recommended authen
 1. Add example secure config templates (included in `configs/iot/`).
 2. Add `--require-auth` / `--tls-cert` flags to `scripts/iot/collector.py` and unit tests (done).
 3. Add integration tests that run a TLS-enabled broker and the collector in Docker and verify authenticated ingestion (done).
-4. Add tests for mTLS/client certs and username/password combos (added). See `.github/workflows/iot_mtls_integration.yml` for mTLS workflow and `scripts/dev/generate_dev_certs.sh` for client cert generation.
+4. Add tests for mTLS/client certs and username/password combos (added). See `.github/workflows/iot_mtls_integration.yml` for mTLS workflow, `.github/workflows/iot_mqtt_auth_integration.yml` for username/password auth, and `scripts/dev/generate_dev_certs.sh` / `scripts/dev/generate_mosquitto_passwd.sh` for dev test artifacts.
 5. Add monitoring metrics and alert docs.
 

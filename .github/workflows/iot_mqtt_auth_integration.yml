@@ -1,0 +1,63 @@
+name: IoT MQTT username/password integration
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'scripts/iot/**'
+      - 'tests/**'
+
+jobs:
+  mqtt-auth-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mosquitto clients & docker
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mosquitto-clients docker.io
+
+      - name: Generate mosquitto password file
+        run: |
+          bash scripts/dev/generate_mosquitto_passwd.sh scripts/dev/certs iot_user securepassword
+          ls -la scripts/dev/certs
+
+      - name: Create mosquitto auth conf
+        run: |
+          cat > scripts/dev/mosquitto-auth.conf <<'EOF'
+listener 1884
+password_file /mosquitto/config/mosquitto.passwd
+allow_anonymous false
+
+log_type all
+EOF
+          ls -la scripts/dev/mosquitto-auth.conf
+
+      - name: Start Mosquitto auth broker
+        run: |
+          docker run -d --name mosq-auth -p 1884:1884 -v "$GITHUB_WORKSPACE/scripts/dev/certs:/mosquitto/config" -v "$GITHUB_WORKSPACE/scripts/dev/mosquitto-auth.conf:/mosquitto/config/mosquitto-auth.conf" eclipse-mosquitto:2.0 mosquitto -c /mosquitto/config/mosquitto-auth.conf
+          sleep 3
+          docker ps -a | grep mosq-auth || (docker logs mosq-auth && exit 1)
+
+      - name: Run collector (mqtt auth) in background
+        run: |
+          mkdir -p results
+          nohup python3 scripts/iot/collector.py --mode mqtt --broker localhost --port 1884 --topic test/telemetry --username iot_user --password securepassword > results/collector_auth.log 2>&1 &
+          sleep 2
+
+      - name: Publish auth message
+        run: |
+          mosquitto_pub -h localhost -p 1884 -u iot_user -P securepassword -t test/telemetry -m '{"device_id":"iot-auth-1","metrics":{"t":21}}'
+          sleep 2
+
+      - name: Verify ingestion
+        run: |
+          if [ ! -f data/iot_staging.jsonl ]; then echo "Missing staging file"; echo "Collector logs:"; tail -n 200 results/collector_auth.log; exit 1; fi
+          grep -q 'iot-auth-1' data/iot_staging.jsonl || (echo "Message not found in staging"; tail -n 200 data/iot_staging.jsonl; exit 1)
+
+      - name: Tear down
+        run: |
+          docker stop mosq-auth || true
+          docker rm mosq-auth || true
