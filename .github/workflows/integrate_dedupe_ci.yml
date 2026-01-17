@@ -1,0 +1,50 @@
+name: Integrate Dedupe CI
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'scripts/data_prep/**'
+      - 'data/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'scripts/data_prep/**'
+      - 'data/**'
+      - '.github/workflows/**'
+
+jobs:
+  run-dedupe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run integrate_dedupe in Docker
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/app" parametrix/edge-emulator:onnx-mpl \
+            python3 scripts/data_prep/integrate_dedupe.py \
+              --input /app/data/validation_sample_unique.jsonl \
+              --output /app/results/validation_sample_deduped_ci.jsonl \
+              --num-perm 128 --band-size 16 --sim-thresh 0.9 --sig-method fast
+
+      - name: List results
+        run: ls -la results || true
+
+      - name: Verify outputs
+        run: |
+          if [ ! -f results/validation_sample_deduped_ci.jsonl ]; then echo "Missing deduped JSONL"; exit 1; fi
+          if [ ! -f results/validation_sample_deduped_ci.jsonl.meta.json ]; then echo "Missing meta"; exit 1; fi
+
+      - name: Run scoped pytest for integration test
+        run: |
+          python3 -m pip install pytest || true
+          pytest -q tests/integration/test_integrate_dedupe.py -q
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dedupe-results
+          path: |
+            results/validation_sample_deduped_ci.jsonl
+            results/validation_sample_deduped_ci.jsonl.meta.json
