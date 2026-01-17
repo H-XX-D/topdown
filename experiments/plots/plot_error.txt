@@ -1,0 +1,2 @@
+Plotting failed: LogScale.__init__() got an unexpected keyword argument 'basex'
+Please install matplotlib in your environment or run this script inside the Docker image with matplotlib available.
