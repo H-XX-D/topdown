@@ -1,0 +1,55 @@
+name: IoT MQTT mTLS integration
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'scripts/iot/**'
+      - 'tests/**'
+
+jobs:
+  mqtt-mtls-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mosquitto clients & docker
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mosquitto-clients docker.io
+
+      - name: Generate dev certs
+        run: |
+          bash scripts/dev/generate_dev_certs.sh scripts/dev/certs
+          ls -la scripts/dev/certs
+
+      - name: Start Mosquitto mTLS broker
+        run: |
+          # run mosquitto container with mounted conf and certs (mtls conf)
+          docker run -d --name mosq-mtls -p 8884:8884 -v "$GITHUB_WORKSPACE/scripts/dev/certs:/mosquitto/config" eclipse-mosquitto:2.0 mosquitto -c /mosquitto/config/mosquitto-mtls.conf
+          sleep 3
+          docker ps -a | grep mosq-mtls || (docker logs mosq-mtls && exit 1)
+
+      - name: Run collector (mqtt TLS) in background
+        run: |
+          mkdir -p results
+          # run collector in background connecting to local mosquitto with TLS (common CA)
+          nohup python3 scripts/iot/collector.py --mode mqtt --broker localhost --port 8884 --topic test/telemetry --tls True --cafile scripts/dev/certs/ca.crt > results/collector_mtls.log 2>&1 &
+          sleep 2
+
+      - name: Publish mTLS message (client cert)
+        run: |
+          # publish a test message using mosquitto_pub with client cert+key
+          mosquitto_pub -h localhost -p 8884 --cafile scripts/dev/certs/ca.crt --cert scripts/dev/certs/client.crt --key scripts/dev/certs/client.key -t test/telemetry -m '{"device_id":"iot-client-1","metrics":{"t":777}}'
+          sleep 2
+
+      - name: Verify ingestion
+        run: |
+          if [ ! -f data/iot_staging.jsonl ]; then echo "Missing staging file"; echo "Collector logs:"; tail -n 200 results/collector_mtls.log; exit 1; fi
+          grep -q 'iot-client-1' data/iot_staging.jsonl || (echo "Message not found in staging"; tail -n 200 data/iot_staging.jsonl; exit 1)
+
+      - name: Tear down
+        run: |
+          docker stop mosq-mtls || true
+          docker rm mosq-mtls || true
