@@ -1,0 +1,21 @@
+arxiv_id,title,url
+2601.07160,AscendKernelGen: LLM-Based Kernel Generation for NPUs,https://arxiv.org/abs/2601.07160
+2601.10678,Synchronizing Probabilities in Model-Driven Lossless Compression,https://arxiv.org/abs/2601.10678
+2601.09985,FaTRQ: Tiered Residual Quantization for LLM Vector Search,https://arxiv.org/abs/2601.09985
+2601.09037,Probabilistic Computers for MIMO Detection,https://arxiv.org/abs/2601.09037
+2512.23914,Hardware Acceleration for Neural Networks: A Comprehensive Survey,https://arxiv.org/abs/2512.23914
+2508.11940,Extending Straight-Through Estimation for Robust Neural Networks on Analog CIM Hardware,https://arxiv.org/abs/2508.11940
+2509.25439,Norm-Q: Effective Compression Method for Hidden Markov Models in Neuro-Symbolic Applications,https://arxiv.org/abs/2509.25439
+2512.04296,GRASP: Grouped Activation Shared Parameterization,https://arxiv.org/abs/2512.04296
+2512.06966,Neuro-Vesicles: Neuromodulation as a Dynamical System,https://arxiv.org/abs/2512.06966
+2511.13676,T-SAR: A Full-Stack Co-design for CPU-Only Ternary LLM Inference,https://arxiv.org/abs/2511.13676
+2510.21879,TernaryCLIP: Efficiently Compressing Vision-Language Models with Ternary Weights,https://arxiv.org/abs/2510.21879
+2509.16989,PTQTP: Post-Training Quantization to Trit-Planes for LLMs,https://arxiv.org/abs/2509.16989
+2506.07530,BitVLA: 1-bit Vision-Language-Action Models for Robotics,https://arxiv.org/abs/2506.07530
+2508.19654,Hardware-aware vs. Hardware-agnostic Energy Estimation for SNN in Space Applications,https://arxiv.org/abs/2508.19654
+2505.19106,An Ultra-Low Power and Fast Ising Machine using Voltage-Controlled MRAM,https://arxiv.org/abs/2505.19106
+2505.00252,Emergent Synaptic Plasticity from Tunable Dynamics of Probabilistic Bits,https://arxiv.org/abs/2505.00252
+2512.11550,Representative Ternary Quantization / 1.58-bit LLM methods,https://arxiv.org/abs/2512.11550
+2601.09985v1,FaTRQ (versioned),https://arxiv.org/abs/2601.09985v1
+2504.16266,TeLLMe: Ternary LLM Accelerator for Edge FPGAs,https://arxiv.org/abs/2504.16266
+2407.12070,Co-Designing Binarized Transformer and Hardware Accelerator,https://arxiv.org/abs/2407.12070

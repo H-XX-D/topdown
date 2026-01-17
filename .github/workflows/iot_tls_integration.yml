@@ -1,0 +1,58 @@
+name: IoT MQTT TLS integration
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'scripts/iot/**'
+      - 'tests/**'
+
+jobs:
+  mqtt-tls-integration:
+    runs-on: ubuntu-latest
+    services: {}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mosquitto clients
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mosquitto-clients docker.io
+
+      - name: Generate dev certs
+        run: |
+          bash scripts/dev/generate_dev_certs.sh scripts/dev/certs
+          ls -la scripts/dev/certs
+
+      - name: Start Mosquitto TLS broker
+        run: |
+          # run mosquitto container with mounted conf and certs
+          docker run -d --name mosq-tls -p 8883:8883 -v "$GITHUB_WORKSPACE/scripts/dev/certs:/mosquitto/config" eclipse-mosquitto:2.0
+          # wait for broker
+          sleep 3
+          docker ps -a | grep mosq-tls || (docker logs mosq-tls && exit 1)
+
+      - name: Run collector (mqtt TLS) in background
+        run: |
+          mkdir -p results
+          # run collector in background connecting to local mosquitto with TLS
+          nohup python3 scripts/iot/collector.py --mode mqtt --broker localhost --port 8883 --topic test/telemetry --tls True --cafile scripts/dev/certs/ca.crt > results/collector.log 2>&1 &
+          sleep 2
+
+      - name: Publish TLS message
+        run: |
+          # publish a test message using mosquitto_pub with TLS verification
+          mosquitto_pub -h localhost -p 8883 --cafile scripts/dev/certs/ca.crt -t test/telemetry -m '{"device_id":"iot-test-1","metrics":{"t":42}}'
+          sleep 2
+
+      - name: Verify ingestion
+        run: |
+          if [ ! -f data/iot_staging.jsonl ]; then echo "Missing staging file"; echo "Collector logs:"; tail -n 200 results/collector.log; exit 1; fi
+          grep -q 'iot-test-1' data/iot_staging.jsonl || (echo "Message not found in staging"; tail -n 200 data/iot_staging.jsonl; exit 1)
+
+      - name: Tear down
+        run: |
+          docker stop mosq-tls || true
+          docker rm mosq-tls || true
+

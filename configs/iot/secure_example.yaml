@@ -1,0 +1,23 @@
+# Example secure config for IoT collector (do NOT store real secrets in the repo)
+server:
+  host: 0.0.0.0
+  port: 8080
+  tls:
+    enabled: true
+    certfile: "/etc/ssl/certs/iot_server.crt"
+    keyfile: "/etc/ssl/private/iot_server.key"
+auth:
+  require_auth: true
+  # simple token map for dev; replace with real device registry in production
+  device_tokens:
+    device-001: "devtoken-ABC123"
+    device-002: "devtoken-DEF456"
+mqtt:
+  host: mqtt.example.local
+  port: 8883
+  tls:
+    enabled: true
+    cafile: "/etc/ssl/certs/ca.crt"
+  credentials:
+    username: "iot_user"
+    password: "securepassword"

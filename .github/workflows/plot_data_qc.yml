@@ -1,0 +1,89 @@
+name: Data QC plotting
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'scripts/bio/**'
+      - 'data/**'
+      - '.github/workflows/plot_data_qc.yml'
+  pull_request:
+    paths:
+      - 'scripts/bio/**'
+      - 'data/**'
+      - '.github/workflows/plot_data_qc.yml'
+
+jobs:
+  plot-qc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run compute_base_balance in Docker
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/app" parametrix/edge-emulator:onnx-mpl \
+            python3 scripts/bio/compute_base_balance.py --input /app/data/sample_reads.fastq --format fastq --per-position --csv --plot --out-prefix /app/results/sample_base_balance_ci
+
+      - name: List results
+        run: ls -la results || true
+
+      - name: Verify outputs
+        run: |
+          if [ ! -f results/sample_base_balance_ci_positions.csv ]; then echo "Missing CSV"; exit 1; fi
+          if [ ! -f results/sample_base_balance_ci_per_position.png ]; then echo "Missing PNG"; exit 1; fi
+
+      - name: Run scoped pytest for integration test
+        run: |
+          python3 -m pip install pytest || true
+          pytest -q tests/integration/test_data_qc_ci.py -q
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-qc-results
+          path: |
+            results/sample_base_balance_ci_positions.csv
+            results/sample_base_balance_ci_per_position.png
+
+  publish-artifacts:
+    needs: plot-qc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish artifacts to branch (generate HTML)
+        env:
+          BRANCH: artifacts/data-qc
+        run: |
+          set -e
+          # create or checkout the artifacts branch
+          git fetch origin || true
+          if git show-ref --verify --quiet refs/heads/$BRANCH; then
+            git checkout $BRANCH
+          else
+            git checkout -b $BRANCH
+          fi
+
+          mkdir -p experiments/plots
+
+          # Use the publish helper to copy artifacts and generate HTML report
+          python3 scripts/bio/publish_qc_artifacts.py --results-dir results --dest-dir experiments/plots --prefix sample_base_balance_ci --html || true
+
+          git add experiments/plots/sample_base_balance_ci_positions.csv experiments/plots/sample_base_balance_ci_per_position.png experiments/plots/sample_base_balance_ci_report.html || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: publish data-qc artifacts (CSV/PNG/HTML)" || true
+            git push origin HEAD:$BRANCH
+          fi

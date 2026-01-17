@@ -1,0 +1,38 @@
+name: W&B smoke test (offline)
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'scripts/train/**'
+      - 'tests/**'
+      - 'requirements-dev.txt'
+
+jobs:
+  wandb-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dev requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run W&B offline example
+        env:
+          WANDB_MODE: offline
+        run: |
+          python3 scripts/train/train_wandb_example.py --steps 5 --offline --out-dir results/wandb_smoke
+
+      - name: Verify artifacts
+        run: |
+          if [ ! -f results/wandb_smoke/wandb_example_model.pt ]; then echo "Missing model"; exit 1; fi
+          # Check wandb_runs dir produced locally by the WandbStub
+          if [ -z "$(ls -1 wandb_runs 2>/dev/null || true)" ]; then echo "Missing wandb_runs"; exit 1; fi
